@@ -8,7 +8,7 @@ with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name="codexmemory",
-    version="1.0.1",
+    version="1.0.2",
     description="100x AI-Powered Semantic Code Memory with FAISS, MiniLM, and Tree-Sitter AST Parsing",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -40,6 +40,7 @@ setup(
         "tree-sitter-go",
         "tree-sitter-rust",
         "tree-sitter-ruby",
+        "rank_bm25>=0.2.2",
     ],
     entry_points={
         "console_scripts": [
