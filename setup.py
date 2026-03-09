@@ -8,7 +8,7 @@ with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name="codexmemory",
-    version="1.0.0",
+    version="1.0.1",
     description="100x AI-Powered Semantic Code Memory with FAISS, MiniLM, and Tree-Sitter AST Parsing",
     long_description=long_description,
     long_description_content_type="text/markdown",
