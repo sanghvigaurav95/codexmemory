@@ -13,17 +13,23 @@ from project_memory import ProjectMemory
 # Create the MCP Server instance
 mcp = FastMCP("CodexMemory Resonance Server")
 
+try:
+    with open(r"C:\Users\gauravsanghvi\codex_mcp_debug.txt", "a") as f:
+        f.write(f"MCP Server Booted. CWD: {os.getcwd()}\n")
+except:
+    pass
+
 # ============================================================================
 # ORCHESTRATION SINGLETONS — Zero-Disk I/O after boot.
 # ============================================================================
 _memory_instance = None
 _retriever_instance = None
 
-def _get_memory() -> ProjectMemory:
+def _get_memory(project_dir: str = None) -> ProjectMemory:
     """Returns a singleton ProjectMemory. Suppresses stdout to protect MCP JSON-RPC."""
     global _memory_instance
     if _memory_instance is None:
-        _memory_instance = ProjectMemory()
+        _memory_instance = ProjectMemory(root_dir=project_dir)
         with contextlib.redirect_stdout(io.StringIO()):
             _memory_instance.load_full()
             
@@ -35,11 +41,11 @@ def _get_memory() -> ProjectMemory:
         
     return _memory_instance
 
-def _get_retriever() -> CodexResonanceSearch:
+def _get_retriever(project_dir: str = None) -> CodexResonanceSearch:
     """Returns a singleton CRR engine, sharing the memory instance."""
     global _retriever_instance
     if _retriever_instance is None:
-        mem = _get_memory()
+        mem = _get_memory(project_dir)
         with contextlib.redirect_stdout(io.StringIO()):
             _retriever_instance = CodexResonanceSearch(memory=mem)
     return _retriever_instance
@@ -49,7 +55,7 @@ def _get_retriever() -> CodexResonanceSearch:
 # TOOL 1: resonance_search (The Scalpel - 95% of queries)
 # ============================================================================
 @mcp.tool()
-def resonance_search(query: str, top_k: int = 4) -> str:
+def resonance_search(query: str, top_k: int = 4, project_dir: str = None) -> str:
     """
     🔴 PRIMARY DEFAULT TOOL - ALWAYS USE THIS FIRST. 🔴
     
@@ -63,9 +69,14 @@ def resonance_search(query: str, top_k: int = 4) -> str:
     
     WHY: This costs ~500 tokens. It isolates the exact logic without reading whole files.
     Do NOT use deep_search or inspect_canvas for basic questions.
+    
+    Args:
+        query: The semantic search query (e.g. 'how does authentication work')
+        top_k: Number of splices to return. Max 4.
+        project_dir: MANDATORY ABSOLUTE PATH to the user's project workspace (e.g. 'E:/work/youtube'). You MUST provide this exactly.
     """
     try:
-        retriever = _get_retriever()
+        retriever = _get_retriever(project_dir)
         results = retriever.search(query, top_k)
 
         if not results:
@@ -88,7 +99,7 @@ def resonance_search(query: str, top_k: int = 4) -> str:
 # TOOL 2: inspect_canvas (The Wide Lens - 4% of queries)
 # ============================================================================
 @mcp.tool()
-def inspect_canvas(file_path: str) -> str:
+def inspect_canvas(file_path: str, project_dir: str = None) -> str:
     """
     🟡 SECONDARY TOOL - USE ONLY WHEN YOU KNOW THE EXACT FILE. 🟡
     
@@ -103,9 +114,10 @@ def inspect_canvas(file_path: str) -> str:
     
     Args:
         file_path: Exact or partial relative path (e.g., 'src/api.py')
+        project_dir: MANDATORY ABSOLUTE PATH to the user's project workspace.
     """
     try:
-        mem = _get_memory()
+        mem = _get_memory(project_dir)
         
         # Path resolution logic
         normalized = file_path.replace('\\', '/').replace('/', os.sep)
@@ -168,7 +180,7 @@ def inspect_canvas(file_path: str) -> str:
 # TOOL 3: deep_search (The Atomic Bomb - 1% of queries)
 # ============================================================================
 @mcp.tool()
-def deep_search(query: str, top_k: int = 2) -> str:
+def deep_search(query: str, top_k: int = 2, project_dir: str = None) -> str:
     """
     💀 NUCLEAR OPTION - HIGH TOKEN COST. 💀
     
@@ -180,10 +192,15 @@ def deep_search(query: str, top_k: int = 2) -> str:
     
     WARNING: This can consume 10,000+ tokens in a single call. If you just need 
     to know how a specific function works, USE `resonance_search` INSTEAD.
+    
+    Args:
+        query: The overarching cross-boundary architectural query
+        top_k: Number of files to return
+        project_dir: MANDATORY ABSOLUTE PATH to the user's project workspace.
     """
     try:
-        mem = _get_memory()
-        retriever = _get_retriever()
+        mem = _get_memory(project_dir)
+        retriever = _get_retriever(project_dir)
         
         results = retriever.search(query, top_k)
         if not results:
