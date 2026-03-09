@@ -1,0 +1,33 @@
+# CodexMemory .gitignore
+# ======================
+
+# Python Architecture
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.env
+
+# Virtual IDEs
+.vscode/
+.idea/
+.agents/
+
+# CodexMemory Specific
+.codexmemory/
+artifacts/
+redundant/
+codexmemoryteamantigravity/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Misc
+*.pdf
+trace.txt
+.DS_Store

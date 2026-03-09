@@ -1,0 +1,6 @@
+mcp
+tiktoken
+sentence-transformers
+faiss-cpu
+numpy
+rank_bm25
