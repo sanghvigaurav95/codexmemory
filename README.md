@@ -60,7 +60,10 @@ To save your computer's RAM, CodexMemory uses **Lazy Initialization**. When you 
 Ai should respond with the exact count something like this -- By using the Codex Resonance Search (resonance_search) tool, we saved a significant amount of context tokens! Here is a rough breakdown of the savings:
 Traditional Method (grep_search + view_file): If I had to search for the snippet and then read the entire file to get the surrounding context, I would have had to ingest all 1,155 lines (44,683 bytes) of AI_News_Gemini_3_Flash...txt. That single file equates to roughly ~10,000 to 11,000 tokens depending on the exact text.
 Resonance Search Method: The resonance_search tool isolates exactly what is needed (the "Holographic Splices") and injects the necessary context dynamically without needing to read the entire file top-to-bottom. A single call to this tool costs approximately ~500 tokens.
-Total Savings: We saved roughly 9,500 to 10,500 tokens in a single query by pinpointing the exact semantic match and its dependencies instead of brute-forcing the entire transcript file into the context window!
+Total Savings: We saved roughly 9,500 to 10,500 tokens Traditional cost: ~10,000 tokens (100%)
+Resonance Search cost: ~500 tokens (5%)
+Total Savings: 95% fewer tokens used per search!
+in a single query by pinpointing the exact semantic match and its dependencies instead of brute-forcing the entire transcript file into the context window!
 
 ---
 
