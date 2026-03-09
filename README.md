@@ -45,6 +45,17 @@ D:\CodexMemory_Global_Engine\.venv\Scripts\codexmemory-install.exe
 That's it! `codexmemory-install` automatically finds your IDE config (like Antigravity) and injects the MCP path. 
 **Restart your IDE**, open ANY project, and CodexMemory will automatically detect the project and start working. You never have to install it per-project again.
 
+### ⚡ Activation & First Run (Lazy Loading)
+To save your computer's RAM, CodexMemory uses **Lazy Initialization**. When you simply open a project folder in your IDE, the engine does *not* boot up indexers (0% CPU usage).
+
+**How to trigger the Auto-Build:**
+1. Open your project in Cursor/Antigravity/Windsurf.
+2. Open the AI Chat pane.
+3. Ask the AI Agent a question using the tool, for example:\
+   *"What does this project do? Use the resonance_search tool to find out."*
+4. **What to expect:** The exact millisecond the AI calls the tool, the Global Engine wakes up. You will hear your CPU fan spin up for 10-30 seconds (could be more if your code base is huge) as it vectorizes your codebase.
+5. **Visual Confirmation:** You will see a hidden `.codexmemory/` folder instantly appear in your project root containing the FAISS index and Binary AST Grid.
+
 ---
 
 ## 🛠️ The 3 Core AI Search Tools
