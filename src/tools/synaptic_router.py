@@ -41,7 +41,7 @@ class SynapticGrid:
     def __init__(self, workspace_dir: str, max_nodes: int = 500000):
         self.workspace_dir = Path(workspace_dir)
         self.artifacts_dir = self.workspace_dir / ".codexmemory"
-        self.artifacts_dir.mkdir(exist_ok=True)
+        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         
         self.grid_path = self.artifacts_dir / "synaptic_grid.dat"
         self.registry_path = self.artifacts_dir / "file_registry.json"
