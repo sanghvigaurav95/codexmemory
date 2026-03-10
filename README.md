@@ -1,5 +1,7 @@
 <img width="600" height="327" alt="Gemini_Generated_Image_github" src="https://github.com/user-attachments/assets/5a94a34a-a01c-45ae-9c54-cd93475d3ae0" />
 
+
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json&label=CodSpeed)](https://codspeed.io/sanghvigaurav95/codexmemory?utm_source=badge)
 # 🧠 CodexMemory: The 100x Synaptic Memory Engine for AI Agents
 
 > **Stop paying OpenAI to play a text adventure game with your codebase.** > Standard AI coding agents waste 80% of your tokens—and your time—looping through `list_dir` → `grep` → `read_file` like a junior developer who lost their glasses.

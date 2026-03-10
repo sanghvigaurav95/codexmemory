@@ -1,0 +1,30 @@
+name: CodSpeed Benchmarks
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pytest-codspeed numpy
+
+      - uses: CodSpeedHQ/action@v4
+        with:
+          mode: simulation
+          run: pytest tests/ --codspeed

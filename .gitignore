@@ -31,3 +31,4 @@ build/
 *.pdf
 trace.txt
 .DS_Store
+.pytest_cache/
