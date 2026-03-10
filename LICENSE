@@ -1,23 +1,34 @@
-MIT License
+PolyForm Noncommercial License 1.0.0
 
-Copyright (c) 2026 Gaurav Sanghvi
-Email: sanghvigaurav95@gmail.com
-Phone: +91 7777045091
+Gaurav Sanghvi
+2026
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This license applies to any software, software source code, or documentation (the "Software") that is accompanied by this license document.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The copyright holder grants you a license to do everything with the Software that would otherwise infringe the copyright holder's copyright, as well as the right to use any of the copyright holder's patents embodied in the Software, under these terms:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+1. Permitted Uses
+
+You may use the Software for noncommercial purposes. Noncommercial purposes include:
+
+* Use by an individual for their own personal use, such as for a hobby or as an educational tool.
+* Use by an individual or organization for academic or research purposes.
+* Use by a non-profit organization or a registered charity.
+* Use for testing, evaluating, and demonstrating the Software.
+
+2. Non-Permitted Uses
+
+You may not use the Software for any commercial purposes. Commercial purposes include:
+
+* Incorporating the Software into a commercial product or service.
+* Using the Software to provide a commercial service.
+* Using the Software for internal business purposes, other than those explicitly permitted above.
+* Distributing the Software for a fee or other consideration.
+
+3. Notices
+
+You must retain all copyright, patent, and trademark notices that appear in the Software. If you distribute the Software, you must include a copy of this license document.
+
+4. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
