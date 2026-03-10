@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from queue import Queue
 from threading import Thread
+import threading
 
 try:
     from watchdog.observers import Observer
@@ -146,6 +147,93 @@ class SynapticGrid:
         except Exception:
             pass  # Silently ignore during interpreter shutdown
 
+    def compact(self, active_node_ids: list) -> dict:
+        """
+        Defragments synaptic_grid.dat by rewriting only active nodes sequentially.
+        Purges all zombie nodes (dead, unreachable 32-byte structs) from disk.
+        
+        Args:
+            active_node_ids: List of node_ids that are still alive in ProjectMemory.
+            
+        Returns:
+            dict: Mapping of old_node_id -> new_node_id for upstream reconciliation.
+        """
+        import sys
+        if not active_node_ids:
+            print("[Grid] 🧹 Compact skipped: no active nodes.", file=sys.stderr)
+            return {}
+
+        old_count = self.next_node_id
+
+        # 1. Read raw packed bytes for each active node from the current mmap
+        active_packed = []
+        for old_id in sorted(active_node_ids):
+            if old_id >= old_count:
+                continue  # Safety: skip out-of-range IDs
+            offset = old_id * self.SLOT_SIZE
+            self.mm.seek(offset)
+            packed = self.mm.read(self.SLOT_SIZE)
+            active_packed.append((old_id, packed))
+
+        # 2. Close the old mmap and file handle
+        self.mm.close()
+        self.f.close()
+
+        # 3. Create a new temp .dat file with minimum capacity
+        tmp_path = self.grid_path.with_suffix('.tmp')
+        new_count = len(active_packed)
+        new_max = max(new_count * 2, 500000)  # Keep minimum capacity
+        new_total_size = self.SLOT_SIZE * new_max
+
+        with open(tmp_path, "wb") as f:
+            f.write(b'\x00' * new_total_size)
+
+        # 4. Write compacted nodes with new sequential IDs
+        id_map = {}  # old_node_id -> new_node_id
+        f_new = open(tmp_path, "r+b")
+        mm_new = mmap.mmap(f_new.fileno(), 0)
+
+        for new_id, (old_id, packed) in enumerate(active_packed):
+            id_map[old_id] = new_id
+            # Unpack the raw struct, replace only node_id, repack (preserves type_hash, file_idx, etc.)
+            unpacked = list(struct.unpack(self.STRUCT_FMT, packed))
+            unpacked[0] = new_id  # Assign new sequential node_id
+            repacked = struct.pack(self.STRUCT_FMT, *unpacked)
+
+            offset = new_id * self.SLOT_SIZE
+            mm_new.seek(offset)
+            mm_new.write(repacked)
+
+        mm_new.close()
+        f_new.close()
+
+        # 5. Atomic file swap: old -> .old, tmp -> .dat, delete .old
+        old_path = self.grid_path.with_suffix('.old')
+        try:
+            if old_path.exists():
+                old_path.unlink()
+            self.grid_path.rename(old_path)
+            tmp_path.rename(self.grid_path)
+            old_path.unlink()
+        except OSError:
+            # Fallback for Windows file locking edge cases
+            if self.grid_path.exists():
+                self.grid_path.unlink()
+            tmp_path.rename(self.grid_path)
+
+        # 6. Reopen the compacted file and update internal state
+        self.max_nodes = new_max
+        self.total_size = new_total_size
+        self.next_node_id = new_count
+        self.f = open(self.grid_path, "r+b")
+        self.mm = mmap.mmap(self.f.fileno(), 0)
+        self._save_registry()
+
+        print(f"[Grid] 🧹 Compacted: {new_count}/{old_count} active nodes preserved. "
+              f"Purged {old_count - new_count} zombie nodes.", file=sys.stderr)
+
+        return id_map
+
 
 # ============================================================================
 # PILLAR 2: The Holographic Canvas (Zero-Copy Read)
@@ -157,14 +245,16 @@ class HolographicCanvas:
     
     Uses an LRU cache of open memory maps (max 25 files) to prevent the syscall 
     death loop of opening/closing mmap handles on every single chunk read.
+    Thread-safe: RLock prevents eviction of an mmap during an active slice read.
     """
     _mmap_cache = {}       # str(full_path) -> (file_handle, mmap_object)
     _access_order = []     # LRU tracking list
     _MAX_CACHE_SIZE = 25
+    _lock = threading.RLock()
 
     @classmethod
     def _get_mmap(cls, full_path: Path):
-        """Returns a cached mmap for the given file, creating one if needed."""
+        """Returns a cached mmap for the given file, creating one if needed. Caller must hold _lock."""
         key = str(full_path)
         
         if key in cls._mmap_cache:
@@ -195,26 +285,27 @@ class HolographicCanvas:
     @classmethod
     def invalidate_cache(cls, full_path: Path = None):
         """Evicts a specific file (or all files) from the mmap cache."""
-        if full_path:
-            key = str(full_path)
-            if key in cls._mmap_cache:
-                fh, mm = cls._mmap_cache.pop(key)
-                try:
-                    mm.close()
-                    fh.close()
-                except Exception:
-                    pass
-                if key in cls._access_order:
-                    cls._access_order.remove(key)
-        else:
-            for fh, mm in cls._mmap_cache.values():
-                try:
-                    mm.close()
-                    fh.close()
-                except Exception:
-                    pass
-            cls._mmap_cache.clear()
-            cls._access_order.clear()
+        with cls._lock:
+            if full_path:
+                key = str(full_path)
+                if key in cls._mmap_cache:
+                    fh, mm = cls._mmap_cache.pop(key)
+                    try:
+                        mm.close()
+                        fh.close()
+                    except Exception:
+                        pass
+                    if key in cls._access_order:
+                        cls._access_order.remove(key)
+            else:
+                for fh, mm in cls._mmap_cache.values():
+                    try:
+                        mm.close()
+                        fh.close()
+                    except Exception:
+                        pass
+                cls._mmap_cache.clear()
+                cls._access_order.clear()
 
     @staticmethod
     def extract_splice(workspace_dir: Path, file_path: str, byte_start: int, byte_end: int) -> str:
@@ -233,8 +324,10 @@ class HolographicCanvas:
             
         if size > 1024 * 50: # If larger than 50KB, use LRU-cached mmap slicing
             try:
-                mm = HolographicCanvas._get_mmap(full_path)
-                code_bytes = mm[byte_start:byte_end]
+                # Hold the lock across get+slice so the map can't be evicted mid-read
+                with HolographicCanvas._lock:
+                    mm = HolographicCanvas._get_mmap(full_path)
+                    code_bytes = mm[byte_start:byte_end]
             except (ValueError, mmap.error):
                 # File was modified externally, invalidate and retry with standard read
                 HolographicCanvas.invalidate_cache(full_path)
@@ -246,7 +339,7 @@ class HolographicCanvas:
                 f.seek(byte_start)
                 code_bytes = f.read(byte_end - byte_start)
                 
-        return code_bytes.decode('utf-8', errors='ignore')
+        return code_bytes.decode('utf-8', errors='replace')
 
 
 # ============================================================================
@@ -346,6 +439,8 @@ class NervousSystem:
         Consumes the delta queue with a 2-second debounce to batch rapid saves.
         Calls ProjectMemory.update_file() to surgically manipulate the FAISS vectors.
         """
+        import contextlib
+        import io
         while self.running:
             try:
                 event = self.queue.get(timeout=1.0)
@@ -361,9 +456,15 @@ class NervousSystem:
                 unique_paths = list({e['file'] for e in events})
                 for rel_path in unique_paths:
                     import sys
-                    print(f"\n[⚡ Synaptic Delta Detected] Routing update for: {rel_path}", file=sys.stderr)
+                    print(f"\n[⚡ Synaptic Delta Detected] Routing RAM update for: {rel_path}", file=sys.stderr)
                     if self.memory_engine:
-                        self.memory_engine.update_file(rel_path)
+                        with contextlib.redirect_stdout(io.StringIO()):
+                            self.memory_engine.update_file(rel_path)
+                
+                # 100x I/O Flush: Dump all accumulated RAM mutations to disk exactly once per batch
+                if self.memory_engine and unique_paths:
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        self.memory_engine.flush_to_disk()
                 
                 
             except Exception:

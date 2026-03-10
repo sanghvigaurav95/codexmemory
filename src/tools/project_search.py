@@ -194,6 +194,8 @@ class CodexResonanceSearch:
         if os.path.exists(bm25_path):
             with open(bm25_path, "rb") as f:
                 self.sparse = pickle.load(f)
+            # Store as shared reference so update_file mutates this exact object
+            self.dense.sparse_index = self.sparse
             print("    [CRR] Loaded precise sub-lexical BM25 index from cache.", file=sys.stderr)
             return
             
@@ -222,6 +224,9 @@ class CodexResonanceSearch:
         self.sparse = IncrementalBM25()
         self.sparse.add_documents(tokenized_corpus)
         
+        # Store as shared reference so update_file mutates this exact object
+        self.dense.sparse_index = self.sparse
+        
         # Save cache
         with open(bm25_path, "wb") as f:
             pickle.dump(self.sparse, f)
@@ -235,11 +240,11 @@ class CodexResonanceSearch:
         Executes a dense (MiniLM) and sparse (BM25) search, fuses them at the 
         exact CHUNK level using RRF, and returns the highest value Holographic Splices.
         """
-        # 100x Reactive State Sync: Re-compile precise tokens if Delta Watcher mutated the FAISS
-        bm25_path = self.dense.root_dir / ".codexmemory" / "project_bm25.pkl"
-        if not bm25_path.exists():
-            import sys
-            print("\n    [CRR] ⚡ Live Delta Shift detected! Re-syncing Semantic and BM25 Corpus...", file=sys.stderr)
+        # 100x Live State Sync: Always use the shared RAM BM25 instance
+        # (update_file mutates self.dense.sparse_index directly, so self.sparse stays current)
+        if self.dense.sparse_index is not None:
+            self.sparse = self.dense.sparse_index
+        elif self.sparse is None:
             self._preload()
             
         # Over-sample to ensure we have enough chunks to fuse properly

@@ -97,7 +97,8 @@ class ProjectMemory:
         self.file_contents = {}      # path → full file content string (deleted before save)
         self.dependency_graph = {}   # path → {imports: [], imported_by: []}
         self.code_structure = {}     # path → {classes: [], functions: [], summary: str}
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()  # Reentrant: safe for CRR wrapper + direct calls
+        self.sparse_index = None  # Live shared IncrementalBM25 — mutated by update_file, read by CRR search
         
         # Synaptic Grid Integration — stored in hidden .codexmemory folder
         self.grid = SynapticGrid(str(self.root_dir))
@@ -167,16 +168,20 @@ class ProjectMemory:
         # --- Phase 1: Load Full Contents ---
         print("    Phase 1: Scanning project files...", file=sys.stderr)
         all_files = []
-        for file in self.root_dir.rglob("*"):
-            if any(ex in file.parts for ex in EXCLUDED_DIRS):
-                continue
-            if file.is_file() and file.suffix in SUPPORTED_EXTENSIONS:
-                all_files.append(file)
+        for root, dirs, files in os.walk(self.root_dir, followlinks=False):
+            dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS and not (Path(root) / d).is_symlink()]
+            root_path = Path(root)
+            for file_name in files:
+                file_path = root_path / file_name
+                if file_path.is_symlink():
+                    continue
+                if file_path.is_file() and file_path.suffix in SUPPORTED_EXTENSIONS:
+                    all_files.append(file_path)
 
         print(f"    Found {len(all_files)} indexable files.", file=sys.stderr)
         for file in all_files:
             try:
-                content = file.read_text(encoding="utf-8", errors="ignore")
+                content = file.read_bytes().decode('utf-8', errors='replace')  # Binary decode preserves \r\n for exact byte offsets
                 relative_path = str(file.relative_to(self.root_dir))
                 self.file_contents[relative_path] = content
             except Exception as e:
@@ -252,11 +257,20 @@ class ProjectMemory:
 
         # --- Phase 5: Generate embeddings ---
         print("    Phase 5: Generating MiniLM Semantic Vectors...", file=sys.stderr)
-        embeddings = model.encode(docs, show_progress_bar=True)
-
-        d = embeddings.shape[1]
+        
+        batch_size = 128
+        all_embeddings = []
+        for i in range(0, len(docs), batch_size):
+            batch = docs[i : i + batch_size]
+            batch_emb = model.encode(batch, show_progress_bar=True if len(docs) > 1000 and i == 0 else False)
+            all_embeddings.append(batch_emb)
+            
+        embeddings = np.vstack(all_embeddings) if all_embeddings else np.array([])
+        d = embeddings.shape[1] if len(embeddings) > 0 else 384
+        
         self.index = faiss.IndexFlatL2(d)
-        self.index.add(np.array(embeddings).astype("float32"))
+        if len(embeddings) > 0:
+            self.index.add(embeddings.astype("float32"))
 
         # --- Phase 6: Save all artifacts ---
         print("    Phase 6: Saving CRS Artifacts...", file=sys.stderr)
@@ -328,7 +342,7 @@ class ProjectMemory:
                         
                 if not full_path.exists():
                     return
-                content = full_path.read_text(encoding="utf-8", errors="ignore")
+                content = full_path.read_bytes().decode('utf-8', errors='replace')  # Binary decode preserves \r\n for exact byte offsets
                 
                 ext = full_path.suffix
                 if HAS_TREE_SITTER and self._get_ts_parser(ext):
@@ -343,6 +357,69 @@ class ProjectMemory:
                 tokens = enc.encode(content)
                 if len(tokens) >= 50:
                     self.file_contents[rel_path] = content
+                    
+                    # --- 100x Live Delta Graph Update ---
+                    # 1. Temporarily rebuild routing tables for resolution
+                    project_files = {}
+                    project_modules = {}
+                    for m in self.metadata:
+                        p = m.get('path')
+                        if not p or m.get('deleted'): continue
+                        stem = Path(p).stem
+                        project_files[stem] = p
+                        project_files[Path(p).name] = p
+                        no_ext = p.rsplit('.', 1)[0] if '.' in p else p
+                        project_files[no_ext] = p
+                        project_files[no_ext.replace('\\', '/')] = p
+                        if p.endswith('.py'):
+                            module_path = p.replace(os.sep, '.').replace('/', '.').removesuffix('.py')
+                            project_modules[module_path] = p
+                            parts = module_path.split('.')
+                            for i in range(len(parts)):
+                                partial = '.'.join(parts[i:])
+                                if partial not in project_modules:
+                                    project_modules[partial] = p
+                    
+                    # Also include the current file being updated
+                    p = rel_path
+                    stem = Path(p).stem
+                    project_files[stem] = p
+                    project_files[Path(p).name] = p
+                    no_ext = p.rsplit('.', 1)[0] if '.' in p else p
+                    project_files[no_ext] = p
+                    project_files[no_ext.replace('\\', '/')] = p
+                    if p.endswith('.py'):
+                        module_path = p.replace(os.sep, '.').replace('/', '.').removesuffix('.py')
+                        project_modules[module_path] = p
+                        parts = module_path.split('.')
+                        for i in range(len(parts)):
+                            partial = '.'.join(parts[i:])
+                            if partial not in project_modules:
+                                project_modules[partial] = p
+
+                    # 2. Extract new imports
+                    new_imports = self._extract_imports(rel_path, content, project_files, project_modules)
+
+                    # 3. Clean old dependencies
+                    old_deps = self.dependency_graph.get(rel_path, {}).get("imports", [])
+                    for old_import in old_deps:
+                        if old_import in self.dependency_graph:
+                            if rel_path in self.dependency_graph[old_import]["imported_by"]:
+                                self.dependency_graph[old_import]["imported_by"].remove(rel_path)
+
+                    # 4. Update the graph for this file
+                    self.dependency_graph[rel_path] = {
+                        "imports": new_imports,
+                        "imported_by": self.dependency_graph.get(rel_path, {}).get("imported_by", [])
+                    }
+
+                    # 5. Connect new dependencies
+                    for new_import in new_imports:
+                        if new_import not in self.dependency_graph:
+                            self.dependency_graph[new_import] = {"imports": [], "imported_by": []}
+                        if rel_path not in self.dependency_graph[new_import]["imported_by"]:
+                            self.dependency_graph[new_import]["imported_by"].append(rel_path)
+
                     chunks = self._build_crs_chunks(rel_path, content, 250)
                     if not chunks:
                         chunks = self._fixed_window_chunk_with_offsets(tokens, content, 250, 50)
@@ -375,67 +452,43 @@ class ProjectMemory:
                     })
                     
                 if docs and self.index:
-                    embeddings = model.encode(docs, show_progress_bar=False)
-                    self.index.add(np.array(embeddings).astype("float32"))
+                    batch_size = 128
+                    all_embeddings = []
+                    for i in range(0, len(docs), batch_size):
+                        batch = docs[i : i + batch_size]
+                        batch_emb = model.encode(batch, show_progress_bar=False)
+                        all_embeddings.append(batch_emb)
+                    embeddings = np.vstack(all_embeddings)
+                    self.index.add(embeddings.astype("float32"))
                     
-                artifacts_dir = self.root_dir / ".codexmemory"
-                if self.index:
-                    faiss.write_index(self.index, str(artifacts_dir / "project_index.faiss"))
-                with open(artifacts_dir / "project_metadata.pkl", "wb") as f:
-                    pickle.dump(self.metadata, f)
-                with open(artifacts_dir / "project_structure.pkl", "wb") as f:
-                    pickle.dump(self.code_structure, f)
-                self.grid._save_registry()
-                
                 if rel_path in self.file_contents:
                     del self.file_contents[rel_path]
                     
-                # 100x Incremental BM25 Update
-                bm25_path = artifacts_dir / "project_bm25.pkl"
-                if bm25_path.exists():
-                    try:
-                        with open(bm25_path, "rb") as f:
-                            sparse_index = pickle.load(f)
+                # 100x Live BM25 Sync — mutate the shared RAM instance directly
+                if self.sparse_index is not None and hasattr(self.sparse_index, 'remove_document'):
+                    import re
+                    def _code_tokenize(text: str) -> list[str]:
+                        if not text: return []
+                        tokens = []
+                        raw_words = re.findall(r'[a-zA-Z0-9]+', text)
+                        for word in raw_words:
+                            tokens.append(word.lower())
+                            if '_' in word:
+                                tokens.extend([sw.lower() for sw in word.split('_') if sw])
+                            camel_splits = re.sub('([A-Z][a-z]+)', r' \\1', re.sub('([A-Z]+)', r' \\1', word)).split()
+                            if len(camel_splits) > 1:
+                                tokens.extend([cs.lower() for cs in camel_splits if cs])
+                        return list(dict.fromkeys(tokens))
+                        
+                    # Phase 1: Remove old vectors from BM25 (mark emptied, not deleted, to keep alignment)
+                    for i, m in enumerate(self.metadata):
+                        if m.get('path') == rel_path and m.get('deleted'):
+                            self.sparse_index.remove_document(i)
                             
-                        # If the loaded object is IncrementalBM25, incrementally update it
-                        if hasattr(sparse_index, 'remove_document') and hasattr(sparse_index, 'add_documents'):
-                            import re
-                            def _code_tokenize(text: str) -> list[str]:
-                                if not text: return []
-                                tokens = []
-                                raw_words = re.findall(r'[a-zA-Z0-9]+', text)
-                                for word in raw_words:
-                                    tokens.append(word.lower())
-                                    if '_' in word:
-                                        tokens.extend([sw.lower() for sw in word.split('_') if sw])
-                                    camel_splits = re.sub('([A-Z][a-z]+)', r' \1', re.sub('([A-Z]+)', r' \1', word)).split()
-                                    if len(camel_splits) > 1:
-                                        tokens.extend([cs.lower() for cs in camel_splits if cs])
-                                return list(dict.fromkeys(tokens))
-                                
-                            # Phase 1: Remove old vectors from BM25
-                            for i, m in enumerate(self.metadata):
-                                if m.get('path') == rel_path and m.get('deleted'):
-                                    sparse_index.remove_document(i)
-                                    
-                            # Phase 2: Add new vectors to BM25
-                            new_docs = []
-                            for chunk_text in docs:
-                                new_docs.append(_code_tokenize(chunk_text))
-                            if new_docs:
-                                sparse_index.add_documents(new_docs)
-                                
-                            # Save it back
-                            with open(bm25_path, "wb") as f:
-                                pickle.dump(sparse_index, f)
-                                
-                        else:
-                            # It's an old BM25Okapi, delete it to force a rebuild into IncrementalBM25
-                            bm25_path.unlink()
-                    except Exception as e:
-                        import sys
-                        print(f"    [ProjectMemory] Error incrementally updating BM25: {e}", file=sys.stderr)
-                        bm25_path.unlink() # fallback
+                    # Phase 2: Add new vectors to BM25
+                    new_docs = [_code_tokenize(chunk_text) for chunk_text in docs]
+                    if new_docs:
+                        self.sparse_index.add_documents(new_docs)
                 
                 import sys
                 print(f"    [ProjectMemory] Surgically updated FAISS & Grid for {rel_path}.", file=sys.stderr)
@@ -507,7 +560,18 @@ class ProjectMemory:
             except Exception as e:
                 print(f"    [ProjectMemory] Error compacting BM25: {e}", file=sys.stderr)
                 
-        # 3. Flush Artifacts to Disk
+        # 3. Compact the SynapticGrid binary file (purge zombie nodes from disk)
+        if hasattr(self, 'grid') and self.grid:
+            active_node_ids = [m['node_id'] for m in self.metadata if 'node_id' in m]
+            if active_node_ids:
+                id_map = self.grid.compact(active_node_ids)
+                # Reconcile metadata node_ids with the new sequential IDs
+                for m in self.metadata:
+                    old_id = m.get('node_id')
+                    if old_id is not None and old_id in id_map:
+                        m['node_id'] = id_map[old_id]
+                        
+        # 4. Flush Artifacts to Disk
         if self.index:
             faiss.write_index(self.index, str(artifacts_dir / "project_index.faiss"))
         with open(artifacts_dir / "project_metadata.pkl", "wb") as f:
@@ -515,6 +579,49 @@ class ProjectMemory:
             pickle.dump(self.metadata, f)
             
         print(f"    [ProjectMemory] 🧹 GC Complete: Purged {old_len - len(self.metadata)} dead vectors.", file=sys.stderr)
+
+    def flush_to_disk(self):
+        """
+        100x I/O Batch Flusher.
+        Called by the NervousSystem after a batch of files has been processed in RAM.
+        Prevents the SSD from thrashing during mass-edits (like git branch switches).
+        """
+        with self.lock:
+            try:
+                import sys
+                artifacts_dir = self.root_dir / ".codexmemory"
+                os.makedirs(artifacts_dir, exist_ok=True)
+
+                # 1. Flush FAISS Vectors
+                if self.index:
+                    faiss.write_index(self.index, str(artifacts_dir / "project_index.faiss"))
+                
+                # 2. Flush Python Metadata & Graph State
+                with open(artifacts_dir / "project_metadata.pkl", "wb") as f:
+                    import pickle
+                    pickle.dump(self.metadata, f)
+                with open(artifacts_dir / "project_structure.pkl", "wb") as f:
+                    import pickle
+                    pickle.dump(self.code_structure, f)
+                with open(artifacts_dir / "project_deps.pkl", "wb") as f:
+                    import pickle
+                    pickle.dump(self.dependency_graph, f)
+                    
+                # 3. Flush Sparse BM25 State
+                if self.sparse_index is not None:
+                    bm25_path = artifacts_dir / "project_bm25.pkl"
+                    with open(bm25_path, "wb") as f:
+                        import pickle
+                        pickle.dump(self.sparse_index, f)
+                        
+                # 4. Flush Synaptic Grid Registry
+                if hasattr(self, 'grid') and self.grid:
+                    self.grid._save_registry()
+
+                print("[ProjectMemory] 💾 I/O Flush Complete: RAM state safely committed to disk.", file=sys.stderr)
+            except Exception as e:
+                import sys
+                print(f"[ProjectMemory] ❌ Critical Error during I/O Flush: {e}", file=sys.stderr)
 
     def close(self):
         """Gracefully shutdown mmap grid to prevent file descriptor leaks."""
@@ -682,8 +789,18 @@ class ProjectMemory:
                     "type": scope_type
                 })
             else:
+                # Dynamic Token Budget: prevent header from stealing all the embedding capacity
+                header_tokens = len(enc.encode(header_text))
+                remaining_tokens = max(50, max_tokens - header_tokens)
+                
+                # If the header is hogging > 80% of the budget, aggressively truncate it
+                if remaining_tokens < 50:
+                    header_text = header_lines[0] + '\n\n'  # Keep only the CRS-Anchor line
+                    header_tokens = len(enc.encode(header_text))
+                    remaining_tokens = max(50, max_tokens - header_tokens)
+                
                 block_tokenized = enc.encode(block_text)
-                sub_chunks = self._fixed_window_chunk(block_tokenized, max_tokens, overlap=50)
+                sub_chunks = self._fixed_window_chunk(block_tokenized, remaining_tokens, overlap=50)
                 for sc in sub_chunks:
                     chunks.append({
                         "header": header_text,
@@ -724,6 +841,113 @@ class ProjectMemory:
 
         return chunks
 
+    def _extract_imports(self, rel_path: str, content: str, project_files: dict, project_modules: dict) -> list[str]:
+        """
+        Extracts imports from a single file's string content.
+        Fully isolated from self.file_contents to support live delta updates.
+        """
+        ext = Path(rel_path).suffix
+        imports = []
+
+        def _resolve_import(import_str: str, current_path: str) -> str | None:
+            """Try to resolve an import string to a project file path."""
+            import_str = import_str.strip().strip("'").strip('"').strip()
+            clean = import_str.lstrip('./').lstrip('../')
+            for candidate in [clean, clean.replace('.', '/'), clean.replace('.', '\\')]:
+                if candidate in project_files and project_files[candidate] != current_path:
+                    return project_files[candidate]
+            stem = Path(clean).stem if '/' in clean or '\\' in clean else clean
+            if stem in project_files and project_files[stem] != current_path:
+                return project_files[stem]
+            return None
+
+        # --- Python ---
+        if ext in {'.py', '.pyi', '.pyx'}:
+            try:
+                tree = ast.parse(content, filename=rel_path)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            resolved = project_modules.get(alias.name)
+                            if resolved and resolved != rel_path:
+                                imports.append(resolved)
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.module:
+                            resolved = project_modules.get(node.module)
+                            if resolved and resolved != rel_path:
+                                imports.append(resolved)
+            except SyntaxError:
+                for line in content.split('\n'):
+                    line = line.strip()
+                    match = re.match(r'^(?:from\s+(\S+)\s+import|import\s+(\S+))', line)
+                    if match:
+                        module_name = match.group(1) or match.group(2)
+                        resolved = project_modules.get(module_name)
+                        if resolved and resolved != rel_path:
+                            imports.append(resolved)
+
+        # --- JS/TS/JSX/TSX ---
+        elif ext in {'.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'}:
+            for line in content.split('\n'):
+                line = line.strip()
+                match = re.match(r"^import\s+.*?from\s+['\"]([^'\"]+)['\"].*$", line)
+                if match:
+                    resolved = _resolve_import(match.group(1), rel_path)
+                    if resolved:
+                        imports.append(resolved)
+                    continue
+                match = re.search(r"require\(['\"]([^'\"]+)['\"]\)", line)
+                if match:
+                    resolved = _resolve_import(match.group(1), rel_path)
+                    if resolved:
+                        imports.append(resolved)
+
+        # --- Java ---
+        elif ext == '.java':
+            for line in content.split('\n'):
+                match = re.match(r'^import\s+(?:static\s+)?([\w.]+);', line.strip())
+                if match:
+                    resolved = _resolve_import(match.group(1), rel_path)
+                    if resolved:
+                        imports.append(resolved)
+
+        # --- Go ---
+        elif ext == '.go':
+            for line in content.split('\n'):
+                match = re.match(r'^\s*"([^"]+)"', line.strip())
+                if match:
+                    resolved = _resolve_import(match.group(1), rel_path)
+                    if resolved:
+                        imports.append(resolved)
+
+        # --- Rust ---
+        elif ext == '.rs':
+            for line in content.split('\n'):
+                match = re.match(r'^\s*(?:use|mod)\s+([\w:]+)', line.strip())
+                if match:
+                    resolved = _resolve_import(match.group(1).replace('::', '.'), rel_path)
+                    if resolved:
+                        imports.append(resolved)
+
+        # --- Ruby ---
+        elif ext == '.rb':
+            for line in content.split('\n'):
+                match = re.match(r"^\s*require(?:_relative)?\s+['\"]([^'\"]+)['\"].*$", line.strip())
+                if match:
+                    resolved = _resolve_import(match.group(1), rel_path)
+                    if resolved:
+                        imports.append(resolved)
+
+        # --- C/C++ ---
+        elif ext in {'.c', '.h', '.cpp', '.hpp', '.cc', '.cs'}:
+            for line in content.split('\n'):
+                match = re.match(r'^\s*#include\s+["<]([^"<>]+)[">]', line.strip())
+                if match:
+                    resolved = _resolve_import(match.group(1), rel_path)
+                    if resolved:
+                        imports.append(resolved)
+
+        return list(dict.fromkeys(imports))
     def _build_dependency_graph(self):
         """
         Parses ALL source files for import statements and builds a bidirectional
@@ -758,121 +982,12 @@ class ProjectMemory:
                     if partial not in project_modules:
                         project_modules[partial] = rel_path
 
-        def _resolve_import(import_str: str, current_path: str) -> str | None:
-            """Try to resolve an import string to a project file path."""
-            # Clean the string
-            import_str = import_str.strip().strip("'").strip('"').strip()
-            # Remove leading ./ or ../
-            clean = import_str.lstrip('./').lstrip('../')
-            # Try direct match
-            for candidate in [clean, clean.replace('.', '/'), clean.replace('.', '\\')]:
-                if candidate in project_files and project_files[candidate] != current_path:
-                    return project_files[candidate]
-            # Try stem match (e.g., 'utils' → 'utils.js')
-            stem = Path(clean).stem if '/' in clean or '\\' in clean else clean
-            if stem in project_files and project_files[stem] != current_path:
-                return project_files[stem]
-            return None
-
-        # Second pass: parse imports from each file
+        # Second pass: parse imports from each file using the isolated extractor
         for rel_path, content in self.file_contents.items():
-            ext = Path(rel_path).suffix
-            imports = []
-
-            # --- Python ---
-            if ext in {'.py', '.pyi', '.pyx'}:
-                try:
-                    tree = ast.parse(content, filename=rel_path)
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.Import):
-                            for alias in node.names:
-                                resolved = project_modules.get(alias.name)
-                                if resolved and resolved != rel_path:
-                                    imports.append(resolved)
-                        elif isinstance(node, ast.ImportFrom):
-                            if node.module:
-                                resolved = project_modules.get(node.module)
-                                if resolved and resolved != rel_path:
-                                    imports.append(resolved)
-                except SyntaxError:
-                    for line in content.split('\n'):
-                        line = line.strip()
-                        match = re.match(r'^(?:from\s+(\S+)\s+import|import\s+(\S+))', line)
-                        if match:
-                            module_name = match.group(1) or match.group(2)
-                            resolved = project_modules.get(module_name)
-                            if resolved and resolved != rel_path:
-                                imports.append(resolved)
-
-            # --- JS/TS/JSX/TSX ---
-            elif ext in {'.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'}:
-                for line in content.split('\n'):
-                    line = line.strip()
-                    # import X from 'Y' / import { X } from 'Y'
-                    match = re.match(r"^import\s+.*?from\s+['\"]([^'\"]+)['\"].*$", line)
-                    if match:
-                        resolved = _resolve_import(match.group(1), rel_path)
-                        if resolved:
-                            imports.append(resolved)
-                        continue
-                    # require('Y')
-                    match = re.search(r"require\(['\"]([^'\"]+)['\"]\)", line)
-                    if match:
-                        resolved = _resolve_import(match.group(1), rel_path)
-                        if resolved:
-                            imports.append(resolved)
-
-            # --- Java ---
-            elif ext == '.java':
-                for line in content.split('\n'):
-                    match = re.match(r'^import\s+(?:static\s+)?([\w.]+);', line.strip())
-                    if match:
-                        resolved = _resolve_import(match.group(1), rel_path)
-                        if resolved:
-                            imports.append(resolved)
-
-            # --- Go ---
-            elif ext == '.go':
-                for line in content.split('\n'):
-                    match = re.match(r'^\s*"([^"]+)"', line.strip())
-                    if match:
-                        resolved = _resolve_import(match.group(1), rel_path)
-                        if resolved:
-                            imports.append(resolved)
-
-            # --- Rust ---
-            elif ext == '.rs':
-                for line in content.split('\n'):
-                    match = re.match(r'^\s*(?:use|mod)\s+([\w:]+)', line.strip())
-                    if match:
-                        resolved = _resolve_import(match.group(1).replace('::', '.'), rel_path)
-                        if resolved:
-                            imports.append(resolved)
-
-            # --- Ruby ---
-            elif ext == '.rb':
-                for line in content.split('\n'):
-                    match = re.match(r"^\s*require(?:_relative)?\s+['\"]([^'\"]+)['\"].*$", line.strip())
-                    if match:
-                        resolved = _resolve_import(match.group(1), rel_path)
-                        if resolved:
-                            imports.append(resolved)
-
-            # --- C/C++ ---
-            elif ext in {'.c', '.h', '.cpp', '.hpp', '.cc', '.cs'}:
-                for line in content.split('\n'):
-                    match = re.match(r'^\s*#include\s+["<]([^"<>]+)[">]', line.strip())
-                    if match:
-                        resolved = _resolve_import(match.group(1), rel_path)
-                        if resolved:
-                            imports.append(resolved)
-
-            # Deduplicate
-            imports = list(dict.fromkeys(imports))
-
+            imports = self._extract_imports(rel_path, content, project_files, project_modules)
             self.dependency_graph[rel_path] = {
                 "imports": imports,
-                "imported_by": []  # populated in reverse pass
+                "imported_by": []
             }
 
         # Reverse pass: populate imported_by
@@ -1283,11 +1398,12 @@ class ProjectMemory:
 
     def search(self, query, k=5):
         """Dense semantic search using MiniLM embeddings."""
-        if self.index is None:
-            self.load()
-        q_emb = model.encode([query])
-        D, I = self.index.search(np.array(q_emb).astype("float32"), k)
-        return [self.metadata[i] for i in I[0]]
+        with self.lock:
+            if self.index is None:
+                self.load()
+            q_emb = model.encode([query])
+            D, I = self.index.search(np.array(q_emb).astype("float32"), k)
+            return [self.metadata[i] for i in I[0]]
 
     def load(self):
         """Load pre-built FAISS index and chunk metadata from artifacts/."""

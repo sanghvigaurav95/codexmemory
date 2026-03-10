@@ -140,8 +140,7 @@ def inspect_canvas(file_path: str, project_dir: str = None) -> str:
         file_path = file_path_to_read
         full_path = mem.root_dir / file_path
         try:
-            with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
+            content = full_path.read_bytes().decode('utf-8', errors='ignore')  # Binary decode preserves \r\n
         except Exception as e:
             return f"Error reading file '{file_path}': {e}"
 
@@ -220,22 +219,52 @@ def deep_search(query: str, top_k: int = 2, project_dir: str = None) -> str:
             output += "#### 🎯 The Resonance Splice (Exact Match)\n"
             output += f"```python\n{result['content']}\n```\n\n"
 
-            # 3. The Full Canvas (Hidden in a details block so it doesn't overwhelm context unless needed)
-            try:
-                full_path = mem.root_dir / path
-                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-            except Exception:
-                content = ""
+            # 3. The Structural Blueprint (Replacing the full source code dump)
+            output += "#### 🏗️ Structural Blueprint\n"
+            struct = mem.code_structure.get(path, {})
+            
+            def format_func(f, indent=""):
+                args = f.get('args', [])
+                args_str = ", ".join(args) if isinstance(args, list) else str(args)
+                prefix = "async " if f.get('is_async') else ""
+                res = f"{indent}- `{prefix}def {f.get('name')}({args_str})`\n"
+                return res
+
+            has_struct = False
+            if struct.get("classes"):
+                has_struct = True
+                output += "**Classes:**\n"
+                for cls in struct.get("classes", []):
+                    output += f"- `class {cls.get('name')}`\n"
+                    for method in cls.get("methods", []):
+                        output += format_func(method, "  ")
+            
+            if struct.get("functions"):
+                has_struct = True
+                output += "**Functions:**\n"
+                for func in struct.get("functions", []):
+                    output += format_func(func, "")
+                    
+            if not has_struct and struct.get("summary"):
+                has_struct = True
+                output += f"**Summary:** {struct['summary']}\n"
                 
-            if content:
-                lines = content.split('\n')
-                numbered_lines = [f"{i+1:>4}: {line}" for i, line in enumerate(lines)]
-                numbered_content = '\n'.join(numbered_lines)
-                
-                output += f"<details>\n<summary>📝 View Full Source Code ({len(lines)} lines)</summary>\n\n"
-                output += f"```python\n{numbered_content}\n```\n\n"
-                output += "</details>\n\n"
+            if not has_struct:
+                output += "*No structural blueprint available.*\n"
+            output += "\n"
+
+            # 4. Resonance Threads (Cross-file Dependencies)
+            deps = mem.dependency_graph.get(path, {})
+            imports = deps.get('imports', [])
+            imported_by = deps.get('imported_by', [])
+            
+            if imports or imported_by:
+                output += "#### 🔗 Resonance Threads\n"
+                if imports:
+                    output += f"- **Imports:** {', '.join(f'`{i}`' for i in imports)}\n"
+                if imported_by:
+                    output += f"- **Imported By:** {', '.join(f'`{i}`' for i in imported_by)}\n"
+                output += "\n"
 
             output += "---\n\n"
 
