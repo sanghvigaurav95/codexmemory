@@ -395,7 +395,7 @@ Bypassing LLM cloud latency to measure pure local OS-level execution:
 
 ## 🤝 Collaboration & Enterprise Use
 
-This project is open-sourced under **MIT License** to demonstrate the atomic orchestration architecture and enable community validation of benchmarks.
+
 
 ### 🏢 For Enterprise Integration
 Organizations interested in production deployment, custom optimization, or architectural consultation should contact me for:
