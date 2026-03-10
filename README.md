@@ -72,7 +72,7 @@ Once loaded, CodexMemory starts a background daemon:
 > **Stop paying OpenAI and Anthropic to play a text adventure game with your codebase.** > Standard AI coding agents waste 80% of your tokens—and your time—looping through `list_dir` → `grep` → `read_file` like a junior developer who lost their glasses.
 > You have just secured CodexMemory: a Top 2% global retrieval architecture. By installing this, you are replacing your agent's primitive, hallucination-prone memory with a zero-copy, memory-mapped, AST-aware nervous system. Let's plug it in.
 
-### ⚡ Step 0: The Global Engine Prerequisite
+### ⚡ Step 0: The Global Universal Engine
 
 Before connecting your clients, you must install the CodexMemory engine globally. We strictly recommend using `uv` for blazing-fast dependency resolution.
 
@@ -84,38 +84,134 @@ uv venv ~/.codexmemory_engine
 uv pip install codexmemory --python ~/.codexmemory_engine
 ```
 
+### 🪄 Step 1: The Antigravity Auto-Installer (Recommended for Antigravity Users)
+
+If you are using Google Antigravity IDE, CodexMemory comes with an elite, autonomous installer that mathematically merges the MCP server configuration into your raw JSON files without erasing your existing plugins. *(Note: This installer is strictly designed for Google Antigravity. For all other IDEs, use the manual wiring guides below).*
+
+Simply run the auto-installer script from your global environment:
+
+**Windows / Linux / macOS (Global Binary):**
+```bash
+~/.codexmemory_engine/bin/codexmemory-install
+```
+*(On Windows, use `~\.codexmemory_engine\Scripts\codexmemory-install.exe`)*
+
+It will automatically locate `~/.gemini/antigravity/mcp_config.json` and inject the payload. Once completed, simply **restart your IDE** and CodexMemory will be live.
+
 ---
 
-### 🔌 1. Cursor (The Local Heavyweight)
+### 🔌 Manual Configuration Overrides (2026 Updated)
+
+If you prefer to manually wire the architecture into your system or air-gapped environment, use the exact payload formats and fully verified 2026 integration steps below. 
+
+#### 1. Cursor (The Local Heavyweight)
 
 Cursor's native agent is powerful, but it inherently suffers from conversational context drag when searching large codebases. CodexMemory bypasses their standard file-passing logic, feeding the agent mathematically precise "Holographic Splices" via standard input/output (stdio).
 
 **The 60-Second Hookup:**
 
 1. Open Cursor and press `Ctrl/Cmd + Shift + J` to open **Cursor Settings**.
-2. Navigate to the **Tools & MCP** tab in the sidebar.
+2. Navigate to the **Features** -> **MCP Servers** tab in the sidebar (or **Tools & MCP** depending on your exact version).
 3. Click **+ Add New MCP Server**.
 4. Enter the following exact configuration:
-* **Name:** `CodexMemory`
-* **Type:** `stdio`
-* **Command:** `~/.codexmemory_engine/bin/python` (or your equivalent Windows path).
-* **Args:** `-m codexmemory.mcp_server`
-
-5. Hit **Add**. Wait for the green status indicator to confirm the connection.
+   * **Name:** `codexmemory`
+   * **Type:** `command` (or `stdio` on legacy builds)
+   * **Command:** `~/.codexmemory_engine/bin/python` (On Windows: `%USERPROFILE%\.codexmemory_engine\Scripts\python.exe`)
+   * **Args:** `["-m", "codexmemory.mcp_server"]`
+5. Hit **Add / Save**. Wait for the green status indicator to confirm the connection.
 
 *The Manipulation:* Do not leave all 40 of your random, experimental MCP tools enabled. Cursor's LLM routing deteriorates when overwhelmed with tool descriptions. Turn off the garbage, leave CodexMemory on, and watch your zero-shot success rate skyrocket.
 
 ---
 
-### 🧠 2. Claude Desktop (The Anthropic Standard)
+#### 🏄‍♀️ 2. Windsurf IDE (Codeium)
+
+Windsurf leverages "Cascade" to orchestrate complex RAG queries. To plug CodexMemory securely into Windsurf's 2026 architecture:
+
+1. Locate your Windsurf MCP configuration JSON:
+   * **macOS/Linux:** `~/.codeium/windsurf/mcp_config.json`
+   * **Windows:** `%USERPROFILE%\.codeium\windsurf\mcp_config.json`
+   *(Alternatively, open "Windsurf Settings" -> Cascade -> Click the custom tool 'hammer' icon to view the raw configs).*
+
+2. Inject the MCP payload into the `'mcpServers'` block. Ensure the absolute path to your Python virtual environment is correct:
+```json
+{
+  "mcpServers": {
+    "codexmemory": {
+      "command": "/Users/YOUR_USER/.codexmemory_engine/bin/python",
+      "args": ["-m", "codexmemory.mcp_server"],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
+```
+3. Restart Windsurf. Cascade will now natively invoke `resonance_search`.
+
+---
+
+#### 🦊 3. Roo Code (VS Code Extension)
+
+Roo Code (formerly Roo Cline) operates as a powerful VS Code extension utilizing the Model Context Protocol.
+
+1. Locate the VS Code Global Storage path for the Roo Code extension settings:
+   * **Mac/Linux:** `~/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json`
+   * **Windows:** `%APPDATA%\Code\User\globalStorage\rooveterinaryinc.roo-cline\settings\cline_mcp_settings.json`
+   *(Or press `Ctrl/Cmd+Shift+P`, type `Roo Code: Open MCP Settings`).*
+
+2. Modify `cline_mcp_settings.json` to include the standard payload:
+```json
+{
+  "mcpServers": {
+    "codexmemory": {
+      "command": "/Users/YOUR_USER/.codexmemory_engine/bin/python",
+      "args": ["-m", "codexmemory.mcp_server"],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
+```
+
+---
+
+#### 🚀 4. Cline (VS Code Extension)
+
+Cline (the original Claude Dev extension) shares a similar architecture to Roo Code, but uses a different global storage directory.
+
+1. Locate the configuration file:
+   * **Mac/Linux:** `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+   * **Windows:** `%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
+   *(Or press `Ctrl/Cmd+Shift+P`, type `Cline: Open MCP Settings`).*
+
+2. Inject the identical standard payload:
+```json
+{
+  "mcpServers": {
+    "codexmemory": {
+      "command": "/Users/YOUR_USER/.codexmemory_engine/bin/python",
+      "args": ["-m", "codexmemory.mcp_server"],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
+```
+
+---
+
+#### 🧠 5. Claude Desktop (The Anthropic Standard)
 
 Claude Desktop relies on standard local STDIO connections to extend its capabilities with custom tools. By routing Claude through CodexMemory, you give it instantaneous, cross-file architectural vision without blowing past its context limits.
 
 **The Hardwired Integration:**
 
-1. Open your Claude Desktop configuration file. If it doesn't exist, create it:
-* **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-* **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+1. Open your Claude Desktop configuration file. If the file or folder doesn't exist, create it:
+   * **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+   * **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 2. Inject the following JSON payload into your `mcpServers` object:
 
@@ -129,43 +225,96 @@ Claude Desktop relies on standard local STDIO connections to extend its capabili
         "codexmemory.mcp_server"
       ],
       "env": {
-        "CODEX_PROJECT_ROOT": "/path/to/your/current/monorepo"
+        "CODEX_PROJECT_ROOT": "/path/to/your/current/monorepo",
+        "PYTHONUTF8": "1"
       }
     }
   }
 }
 ```
 
-3. Save the file and **completely restart Claude Desktop**. You will now see CodexMemory listed as an active connection.
+3. Save the file and **completely restart Claude Desktop** (Command+Q / Ctrl+Q to exit fully, do not just close the window). You will now see CodexMemory listed as an active connection with the "plug" icon.
 
 ---
 
-### 🌌 3. Google Antigravity (The Agentic Mission Control)
+#### ⚡ 6. Zed IDE (The High-Performance Native Editor)
+
+Zed uses a centralized `settings.json` file rather than a dedicated MCP file, and profoundly, it uses the `context_servers` key instead of the standard `mcpServers`.
+
+1. Open your Zed configuration file (`Command/Ctrl + Shift + P` -> `zed: open settings`):
+   * **macOS/Linux:** `~/.config/zed/settings.json`
+   * **Windows:** `%APPDATA%\Zed\settings.json`
+
+2. Inject the CodexMemory hook into the root of the JSON file:
+
+```json
+{
+  "context_servers": {
+    "codexmemory": {
+      "command": "/Users/YOUR_USER/.codexmemory_engine/bin/python",
+      "args": [
+        "-m",
+        "codexmemory.mcp_server"
+      ],
+      "env": {
+        "CODEX_PROJECT_ROOT": "/path/to/your/current/monorepo",
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
+```
+
+3. Save the file. Zed hot-reloads its settings immediately; the MCP server will spin up in the background.
+
+---
+
+#### 🌌 7. Google Antigravity (The Agentic Mission Control)
 
 Google Antigravity is an agent-first IDE designed for orchestrating asynchronous swarms of agents across multiple workspaces. Standard retrieval methods choke when five agents hit the disk simultaneously. CodexMemory’s thread-safe LRU cache handles this natively, feeding your entire Antigravity swarm from a single RAM state.
 
 **The Mission Control Override:**
 
 1. Launch Antigravity and open the **Agent Manager** (your Mission Control dashboard).
-2. Click the `...` dropdown at the top of the Agent Manager panel to open the built-in **MCP Store**.
-3. Click on **Manage MCP Servers**, then select **View raw config**.
-4. Modify the `mcp_config.json` by adding your local CodexMemory server definition.
-5. Ensure your agent permission mode is set correctly—if you are letting Antigravity auto-execute tasks, CodexMemory's perfectly bounded AST chunks are the only thing preventing it from hallucinating a destructive command.
+2. Click the `...` dropdown menu at the top of the Agent Manager panel to open the built-in **MCP Store**.
+3. Click on **Manage MCP Servers**. From here, click **View raw config** to open `mcp_config.json` (typically stored at `~/.gemini/antigravity/mcp_config.json`).
+4. Modify the `mcp_config.json` by adding your local CodexMemory server definition:
+```json
+{
+  "mcpServers": {
+    "codexmemory-search": {
+      "command": "/Users/YOUR_USER/.codexmemory_engine/bin/python",
+      "args": ["-m", "codexmemory.mcp_server"],
+      "env": {
+        "PYTHONUTF8": "1"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+5. Ensure your agent permission mode is set correctly—if you are letting Antigravity auto-execute tasks, CodexMemory's perfectly bounded AST chunks are the only thing preventing it from hallucinating a destructive terminal command.
 
 ---
 
-### 🤖 4. OpenClaw (The Autonomous Viral Agent)
+#### 🤖 8. OpenClaw (The Autonomous Viral Agent)
 
 OpenClaw operates autonomously 24/7 in the background, executing tasks and interacting via messaging apps like WhatsApp, Telegram, or Discord. Because it is a persistent agent capable of executing terminal commands directly on your machine, feeding it dirty, unstructured context is a security risk. CodexMemory mathematically constraints its vision, ensuring it only acts on verified codebase logic.
 
 **The Autonomous Injection:**
 
-1. OpenClaw configuration is primarily handled via its CLI.
-2. Open your terminal and register CodexMemory as a core tool provider using OpenClaw's configuration schema:
+1. OpenClaw configuration is primarily handled via its command-line interface (CLI) to ensure safety.
+2. Open your terminal and register CodexMemory as a core tool provider using OpenClaw's configuration schema (ensure the path is absolute):
 
 ```bash
-openclaw config set mcp.servers.codexmemory.command "~/.codexmemory_engine/bin/python"
+# 1. Register the executable command
+openclaw config set mcp.servers.codexmemory.command "/Users/YOUR_USER/.codexmemory_engine/bin/python"
+
+# 2. Pass the startup server arguments
 openclaw config set mcp.servers.codexmemory.args '["-m", "codexmemory.mcp_server"]'
+
+# 3. Restart the OpenClaw gateway connection
 openclaw gateway restart
 ```
 
