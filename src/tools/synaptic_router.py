@@ -26,16 +26,16 @@ class SynapticGrid:
     Layout (32 bytes per AST Node):
     - node_id    (uint32) : 4 bytes
     - parent_id  (uint32) : 4 bytes
-    - file_idx   (uint16) : 2 bytes (Maps to a registry of file paths)
+    - file_idx   (uint32) : 4 bytes (Maps to a registry of file paths, supports 4.2B files)
     - type_hash  (uint16) : 2 bytes (Hash of 'function', 'class', etc.)
     - byte_start (uint32) : 4 bytes (Start offset in the actual source file)
     - byte_end   (uint32) : 4 bytes (End offset in the actual source file)
     - vector_id  (int64)  : 8 bytes (FAISS index ID)
-    - padding    (pad)    : 4 bytes (Alignment)
+    - padding    (pad)    : 2 bytes (Alignment)
     
     Total: 1,000,000 nodes = ~32 MB of RAM. (Beats 4GB of raw text).
     """
-    STRUCT_FMT = '!IIHHIIq4x'
+    STRUCT_FMT = '!IIIHIIq2x'
     SLOT_SIZE = struct.calcsize(STRUCT_FMT) # Should be 32 bytes
     
     def __init__(self, workspace_dir: str, max_nodes: int = 500000):
@@ -87,7 +87,7 @@ class SynapticGrid:
             pass  # Silently ignore during interpreter shutdown
 
     def register_file(self, rel_path: str) -> int:
-        """Assigns a highly efficient uint16 ID to a file path."""
+        """Assigns a highly efficient uint32 ID to a file path (supports 4.2B files)."""
         if rel_path not in self.path_to_idx:
             idx = self.next_file_idx
             self.file_registry[idx] = rel_path
@@ -154,14 +154,74 @@ class HolographicCanvas:
     """
     Never load the whole string into RAM. 
     Memory map the target source file, slice out the bytes requested by the Grid, and drop it.
+    
+    Uses an LRU cache of open memory maps (max 25 files) to prevent the syscall 
+    death loop of opening/closing mmap handles on every single chunk read.
     """
+    _mmap_cache = {}       # str(full_path) -> (file_handle, mmap_object)
+    _access_order = []     # LRU tracking list
+    _MAX_CACHE_SIZE = 25
+
+    @classmethod
+    def _get_mmap(cls, full_path: Path):
+        """Returns a cached mmap for the given file, creating one if needed."""
+        key = str(full_path)
+        
+        if key in cls._mmap_cache:
+            # Move to end of access order (most recently used)
+            if key in cls._access_order:
+                cls._access_order.remove(key)
+            cls._access_order.append(key)
+            return cls._mmap_cache[key][1]
+        
+        # Evict oldest entry if cache is full
+        while len(cls._mmap_cache) >= cls._MAX_CACHE_SIZE:
+            oldest_key = cls._access_order.pop(0)
+            if oldest_key in cls._mmap_cache:
+                old_fh, old_mm = cls._mmap_cache.pop(oldest_key)
+                try:
+                    old_mm.close()
+                    old_fh.close()
+                except Exception:
+                    pass
+        
+        # Open and cache new mmap
+        fh = open(full_path, "rb")
+        mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+        cls._mmap_cache[key] = (fh, mm)
+        cls._access_order.append(key)
+        return mm
+
+    @classmethod
+    def invalidate_cache(cls, full_path: Path = None):
+        """Evicts a specific file (or all files) from the mmap cache."""
+        if full_path:
+            key = str(full_path)
+            if key in cls._mmap_cache:
+                fh, mm = cls._mmap_cache.pop(key)
+                try:
+                    mm.close()
+                    fh.close()
+                except Exception:
+                    pass
+                if key in cls._access_order:
+                    cls._access_order.remove(key)
+        else:
+            for fh, mm in cls._mmap_cache.values():
+                try:
+                    mm.close()
+                    fh.close()
+                except Exception:
+                    pass
+            cls._mmap_cache.clear()
+            cls._access_order.clear()
+
     @staticmethod
     def extract_splice(workspace_dir: Path, file_path: str, byte_start: int, byte_end: int) -> str:
         full_path = workspace_dir / file_path
         if not full_path.exists():
             return ""
             
-        # For very small files, standard read is faster. For large files, mmap wins.
         size = full_path.stat().st_size
         if size == 0:
             return ""
@@ -171,12 +231,18 @@ class HolographicCanvas:
         if byte_start == byte_end:
             return ""
             
-        with open(full_path, "rb") as f:
-            if size > 1024 * 50: # If larger than 50KB, use OS-level mmap slicing
-                mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        if size > 1024 * 50: # If larger than 50KB, use LRU-cached mmap slicing
+            try:
+                mm = HolographicCanvas._get_mmap(full_path)
                 code_bytes = mm[byte_start:byte_end]
-                mm.close()
-            else:
+            except (ValueError, mmap.error):
+                # File was modified externally, invalidate and retry with standard read
+                HolographicCanvas.invalidate_cache(full_path)
+                with open(full_path, "rb") as f:
+                    f.seek(byte_start)
+                    code_bytes = f.read(byte_end - byte_start)
+        else:
+            with open(full_path, "rb") as f:
                 f.seek(byte_start)
                 code_bytes = f.read(byte_end - byte_start)
                 

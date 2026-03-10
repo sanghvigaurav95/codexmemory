@@ -267,9 +267,31 @@ class ProjectMemory:
         with open(artifacts_dir / "project_metadata.pkl", "wb") as f:
             pickle.dump(self.metadata, f)
             
+        # Initialize IncrementalBM25
+        import re
+        from project_search import IncrementalBM25
+        def _code_tokenize(text: str) -> list[str]:
+            if not text: return []
+            tokens = []
+            raw_words = re.findall(r'[a-zA-Z0-9]+', text)
+            for word in raw_words:
+                tokens.append(word.lower())
+                if '_' in word:
+                    tokens.extend([sw.lower() for sw in word.split('_') if sw])
+                camel_splits = re.sub('([A-Z][a-z]+)', r' \1', re.sub('([A-Z]+)', r' \1', word)).split()
+                if len(camel_splits) > 1:
+                    tokens.extend([cs.lower() for cs in camel_splits if cs])
+            return list(dict.fromkeys(tokens))
+            
+        sparse_index = IncrementalBM25()
+        tokenized_corpus = [_code_tokenize(doc) for doc in docs]
+        if tokenized_corpus:
+            sparse_index.add_documents(tokenized_corpus)
+            
         bm25_path = artifacts_dir / "project_bm25.pkl"
-        if bm25_path.exists():
-            bm25_path.unlink()
+        with open(bm25_path, "wb") as f:
+            pickle.dump(sparse_index, f)
+            
         with open(artifacts_dir / "project_deps.pkl", "wb") as f:
             pickle.dump(self.dependency_graph, f)
         with open(artifacts_dir / "project_structure.pkl", "wb") as f:
@@ -293,6 +315,10 @@ class ProjectMemory:
         with self.lock:
             try:
                 full_path = self.root_dir / rel_path
+                
+                # Evict stale mmap for this file so the LRU cache doesn't serve old data
+                from synaptic_router import HolographicCanvas
+                HolographicCanvas.invalidate_cache(full_path)
                 
                 # Zero-shifting Vector Mapping: 
                 # Instead of rebuilding the whole index or shifting indices, mark old vectors as deleted
@@ -364,16 +390,131 @@ class ProjectMemory:
                 if rel_path in self.file_contents:
                     del self.file_contents[rel_path]
                     
+                # 100x Incremental BM25 Update
                 bm25_path = artifacts_dir / "project_bm25.pkl"
                 if bm25_path.exists():
-                    bm25_path.unlink()
+                    try:
+                        with open(bm25_path, "rb") as f:
+                            sparse_index = pickle.load(f)
+                            
+                        # If the loaded object is IncrementalBM25, incrementally update it
+                        if hasattr(sparse_index, 'remove_document') and hasattr(sparse_index, 'add_documents'):
+                            import re
+                            def _code_tokenize(text: str) -> list[str]:
+                                if not text: return []
+                                tokens = []
+                                raw_words = re.findall(r'[a-zA-Z0-9]+', text)
+                                for word in raw_words:
+                                    tokens.append(word.lower())
+                                    if '_' in word:
+                                        tokens.extend([sw.lower() for sw in word.split('_') if sw])
+                                    camel_splits = re.sub('([A-Z][a-z]+)', r' \1', re.sub('([A-Z]+)', r' \1', word)).split()
+                                    if len(camel_splits) > 1:
+                                        tokens.extend([cs.lower() for cs in camel_splits if cs])
+                                return list(dict.fromkeys(tokens))
+                                
+                            # Phase 1: Remove old vectors from BM25
+                            for i, m in enumerate(self.metadata):
+                                if m.get('path') == rel_path and m.get('deleted'):
+                                    sparse_index.remove_document(i)
+                                    
+                            # Phase 2: Add new vectors to BM25
+                            new_docs = []
+                            for chunk_text in docs:
+                                new_docs.append(_code_tokenize(chunk_text))
+                            if new_docs:
+                                sparse_index.add_documents(new_docs)
+                                
+                            # Save it back
+                            with open(bm25_path, "wb") as f:
+                                pickle.dump(sparse_index, f)
+                                
+                        else:
+                            # It's an old BM25Okapi, delete it to force a rebuild into IncrementalBM25
+                            bm25_path.unlink()
+                    except Exception as e:
+                        import sys
+                        print(f"    [ProjectMemory] Error incrementally updating BM25: {e}", file=sys.stderr)
+                        bm25_path.unlink() # fallback
                 
                 import sys
                 print(f"    [ProjectMemory] Surgically updated FAISS & Grid for {rel_path}.", file=sys.stderr)
                 
+                # --- FAISS / BM25 Garbage Collection Threshold Check ---
+                deleted_count = sum(1 for m in self.metadata if m.get('deleted'))
+                if deleted_count > 50 or (len(self.metadata) > 0 and deleted_count / len(self.metadata) > 0.2):
+                    self._compact_memory()
+                
             except Exception as e:
                 import sys
                 print(f"    [ProjectMemory] Error updating {rel_path}: {e}", file=sys.stderr)
+
+    def _compact_memory(self):
+        """
+        Garbage collector for dead vectors. Rebuilds FAISS, Metadata, and BM25 
+        to strip out deleted chunks, preventing infinite disk/RAM bloat.
+        """
+        import sys
+        print("\n    [ProjectMemory] 🧹 Triggering Garbage Collection (Compacting Index)...", file=sys.stderr)
+        
+        old_len = len(self.metadata)
+        alive_metadata = []
+        alive_indices = []
+        
+        for i, m in enumerate(self.metadata):
+            if not m.get('deleted'):
+                alive_metadata.append(m)
+                alive_indices.append(i)
+                
+        if len(alive_metadata) == old_len:
+            return # Nothing to compact
+            
+        import faiss
+        import numpy as np
+        
+        # 1. Compact FAISS Vector Index
+        if self.index:
+            d = self.index.d
+            new_index = faiss.IndexFlatL2(d)
+            vectors_to_keep = []
+            for i in alive_indices:
+                try:
+                    vec = self.index.reconstruct(i)
+                    vectors_to_keep.append(vec)
+                except Exception:
+                    pass
+            if vectors_to_keep:
+                new_index.add(np.array(vectors_to_keep).astype("float32"))
+            self.index = new_index
+            
+        self.metadata = alive_metadata
+        
+        artifacts_dir = self.root_dir / ".codexmemory"
+        
+        # 2. Compact BM25 Array Alignments
+        bm25_path = artifacts_dir / "project_bm25.pkl"
+        if bm25_path.exists():
+            try:
+                import pickle
+                with open(bm25_path, "rb") as f:
+                    sparse_index = pickle.load(f)
+                if hasattr(sparse_index, 'doc_freqs'):
+                    # Strip out dead docs from the parallel lists
+                    sparse_index.doc_freqs = [sparse_index.doc_freqs[i] for i in alive_indices]
+                    sparse_index.doc_len = [sparse_index.doc_len[i] for i in alive_indices]
+                    with open(bm25_path, "wb") as f:
+                        pickle.dump(sparse_index, f)
+            except Exception as e:
+                print(f"    [ProjectMemory] Error compacting BM25: {e}", file=sys.stderr)
+                
+        # 3. Flush Artifacts to Disk
+        if self.index:
+            faiss.write_index(self.index, str(artifacts_dir / "project_index.faiss"))
+        with open(artifacts_dir / "project_metadata.pkl", "wb") as f:
+            import pickle
+            pickle.dump(self.metadata, f)
+            
+        print(f"    [ProjectMemory] 🧹 GC Complete: Purged {old_len - len(self.metadata)} dead vectors.", file=sys.stderr)
 
     def close(self):
         """Gracefully shutdown mmap grid to prevent file descriptor leaks."""
@@ -553,25 +694,23 @@ class ProjectMemory:
                     })
 
         # 2. Extract AST logic segments precisely without double-counting overlapping lines
-        def get_deepest_node(line_idx: int):
-            best_node = None
-            best_len = float('inf')
-            for n in nodes:
-                # 1-indexed to 0-indexed adjustment for lines array
-                if n['start'] - 1 <= line_idx <= n['end'] - 1:
-                    n_len = n['end'] - n['start']
-                    if n_len < best_len:
-                        best_node = n
-                        best_len = n_len
-            return best_node
+        # Precompute the deepest node for each line to eliminate O(N^2) complexity leak
+        line_to_node = [None] * len(lines)
+        # Sort by length descending, so smaller nodes overwrite larger ones, leaving the "deepest" node
+        sorted_nodes = sorted(nodes, key=lambda n: n['end'] - n['start'], reverse=True)
+        for n in sorted_nodes:
+            start_idx = max(0, n['start'] - 1)
+            end_idx = min(len(lines) - 1, n['end'] - 1)
+            for i in range(start_idx, end_idx + 1):
+                line_to_node[i] = n
 
         current_idx = 0
         while current_idx < len(lines):
-            node = get_deepest_node(current_idx)
+            node = line_to_node[current_idx]
             start_idx = current_idx
             
             block_lines = []
-            while current_idx < len(lines) and get_deepest_node(current_idx) == node:
+            while current_idx < len(lines) and line_to_node[current_idx] == node:
                 block_lines.append(lines[current_idx])
                 current_idx += 1
                 
@@ -1015,16 +1154,90 @@ class ProjectMemory:
         return structure
 
     def _find_brace_end(self, lines: list, start_idx: int) -> int:
-        """Find the closing brace line for a block starting at start_idx."""
+        """
+        Find the closing brace line for a block starting at start_idx.
+        Uses a lightweight state machine to ignore braces inside strings, 
+        comments, regex literals, and template literals.
+        """
         depth = 0
         found_open = False
+        in_single_str = False
+        in_double_str = False
+        in_template = False      # JS/TS backtick template literals
+        in_line_comment = False
+        in_block_comment = False
+        
         for j in range(start_idx, len(lines)):
-            for ch in lines[j]:
+            line = lines[j]
+            in_line_comment = False  # Reset per line
+            i = 0
+            while i < len(line):
+                ch = line[i]
+                prev = line[i - 1] if i > 0 else ''
+                
+                # --- Block comment state ---
+                if in_block_comment:
+                    if ch == '/' and prev == '*':
+                        in_block_comment = False
+                    i += 1
+                    continue
+                
+                # --- String states ---
+                if in_single_str:
+                    if ch == "'" and prev != '\\':
+                        in_single_str = False
+                    i += 1
+                    continue
+                if in_double_str:
+                    if ch == '"' and prev != '\\':
+                        in_double_str = False
+                    i += 1
+                    continue
+                if in_template:
+                    if ch == '`' and prev != '\\':
+                        in_template = False
+                    i += 1
+                    continue
+                
+                # --- Line comment ---
+                if in_line_comment:
+                    i += 1
+                    continue
+                
+                # --- Detect state transitions from code state ---
+                if ch == '/' and i + 1 < len(line):
+                    next_ch = line[i + 1]
+                    if next_ch == '/':
+                        in_line_comment = True
+                        i += 2
+                        continue
+                    elif next_ch == '*':
+                        in_block_comment = True
+                        i += 2
+                        continue
+                
+                if ch == "'":
+                    in_single_str = True
+                    i += 1
+                    continue
+                if ch == '"':
+                    in_double_str = True
+                    i += 1
+                    continue
+                if ch == '`':
+                    in_template = True
+                    i += 1
+                    continue
+                
+                # --- Only count braces in code state ---
                 if ch == '{':
                     depth += 1
                     found_open = True
                 elif ch == '}':
                     depth -= 1
+                
+                i += 1
+            
             if found_open and depth <= 0:
                 return j
         return start_idx  # No braces found, return start

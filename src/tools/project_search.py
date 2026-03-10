@@ -1,9 +1,128 @@
 import os
 os.environ["OMP_NUM_THREADS"] = "1"
 import re
-from typing import List, Dict, Any
+import math
+from typing import List, Dict, Any, Union
 import numpy as np
-from rank_bm25 import BM25Okapi
+
+import threading
+
+class IncrementalBM25:
+    """An incrementally updatable BM25 implementation."""
+    def __init__(self, k1=1.5, b=0.75):
+        self.k1 = k1
+        self.b = b
+        self.corpus_size = 0
+        self.avgdl = 0.0
+        self.doc_freqs = [] # list of dicts mapping term to freq in that doc
+        self.idf = {}
+        self.doc_len = []
+        self._sum_doc_len = 0
+        self.nd = {} # Term -> number of documents containing term
+        self.lock = threading.RLock()
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove the unpicklable RLock
+        if 'lock' in state:
+            del state['lock']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Restore the RLock
+        self.lock = threading.RLock()
+
+    def _calc_idf(self, nd):
+        idf_sum = 0
+        negative_idfs = []
+        for word, freq in nd.items():
+            # Clamp to prevent math domain error when corpus_size matches freq perfectly and +0.5 is misaligned during deletions
+            val1 = max(0.5, self.corpus_size - freq + 0.5)
+            val2 = max(0.5, freq + 0.5)
+            idf = math.log(val1) - math.log(val2)
+            self.idf[word] = idf
+            idf_sum += idf
+            if idf < 0:
+                negative_idfs.append(word)
+        
+        self.average_idf = idf_sum / len(self.idf) if self.idf else 0
+        eps = 0.25 * self.average_idf
+        for word in negative_idfs:
+            self.idf[word] = eps
+
+    def add_documents(self, corpus: List[List[str]]):
+        with self.lock:
+            for document in corpus:
+                frequencies = {}
+                for word in document:
+                    frequencies[word] = frequencies.get(word, 0) + 1
+                self.doc_freqs.append(frequencies)
+                
+                for word in frequencies.keys():
+                    self.nd[word] = self.nd.get(word, 0) + 1
+                    
+                length = len(document)
+                self.doc_len.append(length)
+                self._sum_doc_len += length
+                self.corpus_size += 1
+                
+            if self.corpus_size > 0:
+                self.avgdl = self._sum_doc_len / self.corpus_size
+            self._calc_idf(self.nd)
+
+    def remove_document(self, doc_index: int):
+        with self.lock:
+            if doc_index >= len(self.doc_freqs):
+                return
+                
+            frequencies = self.doc_freqs[doc_index]
+            for word in frequencies.keys():
+                self.nd[word] -= 1
+                if self.nd[word] == 0:
+                    del self.nd[word]
+                    if word in self.idf:
+                        del self.idf[word]
+                        
+            length = self.doc_len[doc_index]
+            self._sum_doc_len -= length
+            self.corpus_size -= 1
+            
+            # We don't delete from the lists to keep indices aligned, we just empty them
+            self.doc_freqs[doc_index] = {}
+            self.doc_len[doc_index] = 0
+            
+            if self.corpus_size > 0:
+                self.avgdl = self._sum_doc_len / self.corpus_size
+            else:
+                self.avgdl = 0.0
+            self._calc_idf(self.nd)
+
+    def get_scores(self, query: List[str]) -> np.ndarray:
+        with self.lock:
+            scores = np.zeros(len(self.doc_freqs))
+            if self.corpus_size == 0:
+                return scores
+                
+            for q in query:
+                q_freq = np.array([doc.get(q, 0) for doc in self.doc_freqs])
+                if q not in self.idf:
+                    continue
+                
+                idf = self.idf[q]
+                doc_len = np.array(self.doc_len)
+                
+                # Avoid division by zero for deleted docs where avgdl might be 0
+                if self.avgdl == 0:
+                    denominator = q_freq + self.k1
+                else:
+                    denominator = q_freq + self.k1 * (1 - self.b + self.b * doc_len / self.avgdl)
+                    
+                numerator = idf * q_freq * (self.k1 + 1)
+                valid_indices = denominator > 0
+                scores[valid_indices] += numerator[valid_indices] / denominator[valid_indices]
+                
+            return scores
 
 # Import your core memory engine
 from project_memory import ProjectMemory
@@ -81,25 +200,27 @@ class CodexResonanceSearch:
         # Extract text directly from mapped Grid and Canvas
         from synaptic_router import HolographicCanvas
         docs_text = []
-        for meta in self.dense.metadata:
-            if meta.get('deleted'):
-                docs_text.append("") # Blank string prevents BM25 keyword hits but maintains array index alignment
-                continue
-                
-            header = meta.get('header', '')
-            node_id = meta.get('node_id')
-            if node_id is not None:
-                node = self.dense.grid.read_node(node_id)
-                code_bytes = HolographicCanvas.extract_splice(self.dense.root_dir, node['file_path'], node['byte_start'], node['byte_end'])
-                docs_text.append(header + code_bytes)
-            else:
-                docs_text.append(header) # fallback
+        with self.dense.lock:
+            for meta in self.dense.metadata:
+                if meta.get('deleted'):
+                    docs_text.append("") # Blank string prevents BM25 keyword hits but maintains array index alignment
+                    continue
+                    
+                header = meta.get('header', '')
+                node_id = meta.get('node_id')
+                if node_id is not None:
+                    node = self.dense.grid.read_node(node_id)
+                    code_bytes = HolographicCanvas.extract_splice(self.dense.root_dir, node['file_path'], node['byte_start'], node['byte_end'])
+                    docs_text.append(header + code_bytes)
+                else:
+                    docs_text.append(header) # fallback
                 
         # Fit BM25 using the advanced code tokenizer
         import sys
         print("    [CRR] Compiling sub-lexical sparse index...", file=sys.stderr)
         tokenized_corpus = [self._code_tokenize(doc) for doc in docs_text]
-        self.sparse = BM25Okapi(tokenized_corpus)
+        self.sparse = IncrementalBM25()
+        self.sparse.add_documents(tokenized_corpus)
         
         # Save cache
         with open(bm25_path, "wb") as f:
@@ -124,87 +245,93 @@ class CodexResonanceSearch:
         # Over-sample to ensure we have enough chunks to fuse properly
         search_depth = k * 4
         
-        # ---------------------------------------------------------
-        # 1. Dense Search (Semantic Intent via FAISS + MiniLM)
-        # ---------------------------------------------------------
-        dense_results = self.dense.search(query, search_depth)
-        
-        # Map the dense rank back to the global chunk index in self.dense.metadata
         dense_ranks = {}
-        for rank, meta_dict in enumerate(dense_results):
-            try:
-                # Find exactly where this chunk lives in the global array
-                global_idx = self.dense.metadata.index(meta_dict)
-                dense_ranks[global_idx] = rank
-            except ValueError:
-                continue
-
-        # ---------------------------------------------------------
-        # 2. Sparse Search (Exact Keyword via BM25Okapi)
-        # ---------------------------------------------------------
-        q_tokens = self._code_tokenize(query)
-        bm25_scores = self.sparse.get_scores(q_tokens)
-        
-        # Get the indices of the top N BM25 scores, sorted highest to lowest
-        bm25_top_indices = np.argsort(bm25_scores)[-search_depth:][::-1]
-
-        # ---------------------------------------------------------
-        # 3. Reciprocal Rank Fusion (RRF)
-        # ---------------------------------------------------------
-        fused_scores = {}
-        RRF_K = 60  # Standard smoothing constant for RRF math
-        
-        # Apply Dense Ranks to the fusion score
-        for global_idx, rank in dense_ranks.items():
-            fused_scores[global_idx] = fused_scores.get(global_idx, 0.0) + (1.0 / (RRF_K + rank + 1))
+        with self.dense.lock:
+            # ---------------------------------------------------------
+            # 1. Dense Search (Semantic Intent via FAISS + MiniLM)
+            # ---------------------------------------------------------
+            dense_results = self.dense.search(query, search_depth)
             
-        # Apply Sparse Ranks to the fusion score
-        for rank, global_idx in enumerate(bm25_top_indices):
-            # Only count it if the BM25 score is actually greater than 0
-            if bm25_scores[global_idx] > 0:
+            # Map the dense rank back to the global chunk index in self.dense.metadata
+            for rank, meta_dict in enumerate(dense_results):
+                try:
+                    # Find exactly where this chunk lives in the global array
+                    global_idx = self.dense.metadata.index(meta_dict)
+                    dense_ranks[global_idx] = rank
+                except ValueError:
+                    continue
+
+            # ---------------------------------------------------------
+            # 2. Sparse Search (Exact Keyword via BM25Okapi)
+            # ---------------------------------------------------------
+            q_tokens = self._code_tokenize(query)
+            bm25_scores = self.sparse.get_scores(q_tokens)
+            
+            # Get the indices of the top N BM25 scores, sorted highest to lowest
+            bm25_top_indices = np.argsort(bm25_scores)[-search_depth:][::-1]
+
+            # ---------------------------------------------------------
+            # 3. Reciprocal Rank Fusion (RRF)
+            # ---------------------------------------------------------
+            fused_scores = {}
+            RRF_K = 60  # Standard smoothing constant for RRF math
+            
+            # Apply Dense Ranks to the fusion score
+            for global_idx, rank in dense_ranks.items():
                 fused_scores[global_idx] = fused_scores.get(global_idx, 0.0) + (1.0 / (RRF_K + rank + 1))
-            
-        # ---------------------------------------------------------
-        # 4. Sort & Package the Holographic Payload
-        # ---------------------------------------------------------
-        # Sort by highest fused score first, grab the top K
-        top_chunk_indices = sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)[:k]
-        
-        results = []
-        for global_idx, score in top_chunk_indices:
-            meta = self.dense.metadata[global_idx]
-            
-            # Skip overwritten vectors
-            if meta.get('deleted'):
-                continue
                 
-            # Fetch the high-level file summary from the dependency graph/structure
-            # This gives the LLM the "map" of the file the chunk came from
-            path = meta['path']
-            file_structure = self.dense.code_structure.get(path, {})
-            file_summary = file_structure.get("summary", "")
+            # Apply Sparse Ranks to the fusion score
+            for rank, global_idx in enumerate(bm25_top_indices):
+                # Verify max length so garbage collection shifts don't throw IndexError
+                if global_idx < len(bm25_scores) and bm25_scores[global_idx] > 0:
+                    fused_scores[global_idx] = fused_scores.get(global_idx, 0.0) + (1.0 / (RRF_K + rank + 1))
+                
+            # ---------------------------------------------------------
+            # 4. Sort & Package the Holographic Payload
+            # ---------------------------------------------------------
+            # Sort by highest fused score first, grab the top K
+            top_chunk_indices = sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)[:k]
             
-            from synaptic_router import HolographicCanvas
-            node_id = meta.get('node_id')
-            if node_id is not None:
-                node = self.dense.grid.read_node(node_id)
-                code_bytes = HolographicCanvas.extract_splice(self.dense.root_dir, node['file_path'], node['byte_start'], node['byte_end'])
-                content = meta.get('header', '') + code_bytes
-            else:
-                content = meta.get('header', '')
+            results = []
+            results = []
+            for global_idx, score in top_chunk_indices:
+                # bounds check to prevent IndexError during concurrent Garbage Collection shifts
+                if global_idx >= len(self.dense.metadata) or global_idx < 0:
+                    continue
+                    
+                meta = self.dense.metadata[global_idx]
+                
+                # Skip overwritten vectors
+                if meta.get('deleted'):
+                    continue
+                    
+                # Fetch the high-level file summary from the dependency graph/structure
+                # This gives the LLM the "map" of the file the chunk came from
+                path = meta['path']
+                file_structure = self.dense.code_structure.get(path, {})
+                file_summary = file_structure.get("summary", "")
+                
+                from synaptic_router import HolographicCanvas
+                node_id = meta.get('node_id')
+                if node_id is not None:
+                    node = self.dense.grid.read_node(node_id)
+                    code_bytes = HolographicCanvas.extract_splice(self.dense.root_dir, node['file_path'], node['byte_start'], node['byte_end'])
+                    content = meta.get('header', '') + code_bytes
+                else:
+                    content = meta.get('header', '')
 
-            results.append({
-                'path': path,
-                'chunk_id': meta.get('chunk_id', 0),
-                'tokens': meta.get('tokens', 0),
-                'fusion_score': float(score),
-                'file_summary': file_summary,
-                'content': content  # The actual CRS injected code block
-            })
-            
-            if len(results) >= k:
-                break
+                results.append({
+                    'path': path,
+                    'chunk_id': meta.get('chunk_id', 0),
+                    'tokens': meta.get('tokens', 0),
+                    'fusion_score': float(score),
+                    'file_summary': file_summary,
+                    'content': content  # The actual CRS injected code block
+                })
                 
+                if len(results) >= k:
+                    break
+                    
         return results
 
 if __name__ == "__main__":
