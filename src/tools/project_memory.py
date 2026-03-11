@@ -1409,6 +1409,7 @@ class ProjectMemory:
         with self.lock:
             if self.index is None:
                 self.load()
+            model = get_model()
             q_emb = model.encode([query])
             D, I = self.index.search(np.array(q_emb).astype("float32"), k)
             return [self.metadata[i] for i in I[0]]
