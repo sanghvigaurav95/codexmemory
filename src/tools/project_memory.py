@@ -30,7 +30,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CodexMemory.ProjectMemory")
 
 enc = tiktoken.get_encoding("cl100k_base")
-model = SentenceTransformer('all-MiniLM-L6-v2')
+_model = None
+
+def get_model():
+    global _model
+    if _model is None:
+        _model = SentenceTransformer('all-MiniLM-L6-v2')
+    return _model
 
 # Supported file extensions for indexing (all major coding languages + configs)
 SUPPORTED_EXTENSIONS = {
@@ -260,6 +266,7 @@ class ProjectMemory:
         
         batch_size = 128
         all_embeddings = []
+        model = get_model()
         for i in range(0, len(docs), batch_size):
             batch = docs[i : i + batch_size]
             batch_emb = model.encode(batch, show_progress_bar=True if len(docs) > 1000 and i == 0 else False)
@@ -454,6 +461,7 @@ class ProjectMemory:
                 if docs and self.index:
                     batch_size = 128
                     all_embeddings = []
+                    model = get_model()
                     for i in range(0, len(docs), batch_size):
                         batch = docs[i : i + batch_size]
                         batch_emb = model.encode(batch, show_progress_bar=False)
