@@ -1,16 +1,37 @@
-<img width="600" height="327" alt="Gemini_Generated_Image_github" src="https://github.com/user-attachments/assets/5a94a34a-a01c-45ae-9c54-cd93475d3ae0" />
+<div align="center">
+  <img width="600" src="https://github.com/user-attachments/assets/5a94a34a-a01c-45ae-9c54-cd93475d3ae0" alt="CodexMemory Architecture" />
 
+  <p>
+    <a href="https://codspeed.io/sanghvigaurav95/codexmemory?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json&label=CodSpeed" alt="CodSpeed" /></a>
+  </p>
+  <h1>🧠 CodexMemory</h1>
+  <p><b>The 100x Synaptic Memory Engine for AI Agents</b></p>
 
-[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json&label=CodSpeed)](https://codspeed.io/sanghvigaurav95/codexmemory?utm_source=badge)
-# 🧠 CodexMemory: The 100x Synaptic Memory Engine for AI Agents
+  <p>
+    <a href="https://github.com/sanghvigaurav95/codexmemory/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Source--Available-blue.svg" alt="License"></a>
+    <img src="https://img.shields.io/badge/Python-3.10+-success.svg" alt="Python 3.10+">
+    <img src="https://img.shields.io/badge/Architecture-AST%20TreeSitter-orange.svg" alt="TreeSitter">
+  </p>
 
-> **Stop paying OpenAI to play a text adventure game with your codebase.** > Standard AI coding agents waste 80% of your tokens—and your time—looping through `list_dir` → `grep` → `read_file` like a junior developer who lost their glasses.
+  <p><em>An elite, production-grade Model Context Protocol (MCP) server that operates as a zero-copy, memory-mapped, AST-aware nervous system for your custom workflows.</em></p>
+</div>
 
-CodexMemory is an elite, production-grade Model Context Protocol (MCP) server that completely obliterates **"Conversational Context Drag."** It replaces primitive tool-thrashing with a single, atomic, sub-50ms vector payload.
+<details>
+  <summary><b>Table of Contents</b></summary>
+  <ul>
+    <li><a href="#-how-it-works-the-100x-architecture">Architecture & Setup</a></li>
+    <li><a href="#-quickstart--installation">Quickstart & Installation</a></li>
+    <li><a href="#-the-3-core-ai-search-tools">Core MCP Tools</a></li>
+    <li><a href="#-empirical-benchmarks--validation">Benchmarks</a></li>
+    <li><a href="#-license--enterprise-use">License & Support</a></li>
+  </ul>
+</details>
 
-We didn't just build another lazy LangChain wrapper. We built a zero-copy, memory-mapped, AST-aware nervous system for your IDE.
+## 🎯 The Paradigm Shift
 
-Here is why CodexMemory sits in the top 2% of global code retrieval architectures:
+Standard AI coding agents waste tokens and computation time looping through simple directory scans or grep commands. CodexMemory replaces primitive tool-thrashing with a single, atomic, sub-50ms vector payload.
+
+Here is why CodexMemory's architecture offers unparalleled code retrieval performance:
 
 ### ⚡ 1. The Synaptic Grid (Zero-String Memory Mapping)
 
@@ -69,10 +90,9 @@ Once loaded, CodexMemory starts a background daemon:
 
 ---
 
-# 🚀 Quickstart & Installation (The 100x Setup)
+# 🚀 Quickstart & Installation
 
-> **Stop paying OpenAI and Anthropic to play a text adventure game with your codebase.** > Standard AI coding agents waste 80% of your tokens—and your time—looping through `list_dir` → `grep` → `read_file` like a junior developer who lost their glasses.
-> You have just secured CodexMemory: a Top 2% global retrieval architecture. By installing this, you are replacing your agent's primitive, hallucination-prone memory with a zero-copy, memory-mapped, AST-aware nervous system. Let's plug it in.
+By installing CodexMemory, you inject a highly optimized, AST-aware nervous system into your MCP-compatible IDE or custom agent framework. Designed for instant semantic retrieval, this replaces primitive looping with atomic context injections.
 
 ### ⚡ Step 0: The Global Universal Engine
 
@@ -393,29 +413,39 @@ Bypassing LLM cloud latency to measure pure local OS-level execution:
 
 ---
 
-## 🤝 Collaboration & Enterprise Use
+## ⚖️ License & Enterprise Use
 
+CodexMemory is distributed under the **[CodexMemory Source-Available License 1.0](LICENSE)**.
 
+### Permitted Uses
+You are free to use CodexMemory for **personal development, educational use, academic research, and non-profit** purposes. You may use it for independent experimentation, demonstrations, and content creation (including monetized videos on platforms like YouTube, Twitch, or others).
 
-### 🏢 For Enterprise Integration
-Organizations interested in production deployment, custom optimization, or architectural consultation should contact me for:
+### Commercial Licensing
+You may **not** use the Software for any **commercial purpose** (e.g., integrating it into a paid product, SaaS platform, internal business tools, or offering it as part of consulting services) without obtaining a separate commercial license.
+
+To discuss commercial deployment, custom optimizations, and architectural integration, please reach out directly:
+
+Available enterprise services include:
 - ⚡ **Performance tuning for scale** (10M+ queries/month)
 - 🔧 **Custom language parser development**
-- 🛠️ **Integration consulting and support**
-- 🤝 **Collaborative development partnerships**
-
-### 📬 Contact
-
-![DettsecFinalgithub](https://github.com/user-attachments/assets/0cfcf4fe-c88c-45f1-91e1-967c5bd798f7)
-
-**Gaurav Sanghvi**  
-*CEO/Director, Dettsec Algo PVT*
-
-📧 **Email:** sanghvigaurav95@gmail.com  
-📱 **WhatsApp:** [+91 7777045091](https://wa.me/917777045091)  
-📞 **Call:** +91 7777045091  
-📸 **Instagram:** [sanghvigaurav13](https://www.instagram.com/sanghvigaurav13)
+- 🛠️ **Deep integration support for custom agentic frameworks**
 
 ---
-**Built for next-generation AI agents. Production-ready. Battle-tested.**  
-*CodexMemory eliminates Context Drag, one atomic search at a time.*
+
+## 📬 Contact & Corporate Inquiries
+
+**Gaurav Sanghvi**  
+*CEO / Director, Dettsec Algo PVT*
+
+*   **Email:** [sanghvigaurav95@gmail.com](mailto:sanghvigaurav95@gmail.com)
+*   **Phone / WhatsApp:** [+91 7777045091](https://wa.me/917777045091)
+*   **LinkedIn / Instagram:** [@sanghvigaurav13](https://www.instagram.com/sanghvigaurav13)
+
+<img src="https://github.com/user-attachments/assets/0cfcf4fe-c88c-45f1-91e1-967c5bd798f7" width="150" alt="Dettsec Logo" />
+
+---
+
+<div align="center">
+  <b>Built for next-generation AI agents. Production-ready. Battle-tested.</b><br>
+  <em>CodexMemory eliminates Context Drag, one atomic search at a time.</em>
+</div>
