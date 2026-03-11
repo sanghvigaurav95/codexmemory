@@ -1,95 +1,176 @@
-# PolyForm Noncommercial License 1.0.0
+# CodexMemory Source-Available License
+
+Version 1.0
 
 Copyright (c) 2026 Gaurav Sanghvi
 
-This license applies to any software, software source code, documentation, or related materials (the **"Software"**) that are distributed with this license file.
+This license governs the use, modification, and distribution of the software, source code, documentation, and associated materials (collectively, the "Software") distributed in this repository.
 
-The copyright holder grants you a license to use, copy, modify, and distribute the Software, and to exercise any patent rights embodied in the Software, subject to the terms and conditions described below.
-
----
-
-## 1. Permitted Uses
-
-You may use the Software **only for noncommercial purposes**.
-
-Noncommercial purposes include, but are not limited to:
-
-### Personal Use
-
-Use by an individual for personal projects, experimentation, hobbies, or learning.
-
-### Educational Use
-
-Use by students, teachers, researchers, or educational institutions for learning or teaching.
-
-### Academic and Research Use
-
-Use by individuals or organizations conducting academic research, experiments, or technical exploration.
-
-### Non-Profit Use
-
-Use by registered non-profit organizations or charities.
-
-### Testing and Evaluation
-
-Use for testing, benchmarking, evaluating, or experimenting with the Software.
-
-### Content Creation and Demonstration
-
-You may demonstrate, review, or showcase the Software in videos, tutorials, livestreams, articles, blogs, documentation, or other educational or informational content, including on monetized platforms such as YouTube or similar services, **provided the Software itself is not sold, licensed, or used to provide a commercial product or service**.
+By using, copying, modifying, or distributing the Software, you agree to the terms of this license.
 
 ---
 
-## 2. Non-Permitted Uses
+# 1. Grant of License
 
-You may **not** use the Software for any **commercial purpose** without obtaining a separate commercial license from the copyright holder.
+The copyright holder grants you a worldwide, non-exclusive, non-transferable, revocable license to:
 
-Commercial purposes include, but are not limited to:
+• Use the Software
+• Copy the Software
+• Modify the Software
+• Distribute the Software
 
-* Incorporating the Software into a **commercial product or service**
-* Using the Software to **provide paid services**
-* Using the Software within **internal commercial business operations**
-* Offering the Software as part of a **SaaS platform, paid tool, or enterprise system**
-* Selling, sublicensing, or distributing the Software **for a fee or financial consideration**
-
----
-
-## 3. Distribution Requirements
-
-If you distribute the Software or modified versions of the Software, you must:
-
-* Include a **copy of this license**
-* Preserve all **copyright notices, attribution notices, and disclaimers**
-* Clearly indicate if you have **modified the Software**
+**ONLY for Non-Commercial Purposes**, subject to the conditions of this license.
 
 ---
 
-## 4. Contributions
+# 2. Definition of Non-Commercial Use
 
-If you submit a contribution to this repository (including pull requests, patches, code improvements, documentation, or other materials), you agree that:
+"Non-Commercial Use" means use that is **not primarily intended for or directed toward commercial advantage or monetary compensation**.
 
-* Your contribution will be **licensed under the same license as this project**.
-* You confirm that you **have the legal right to submit the contribution**.
-* Your contribution does **not violate any third-party rights**.
+Examples of permitted non-commercial use include:
 
-This ensures that all contributions remain compatible with the project's licensing model.
+• Personal development or hobby projects
+• Educational use in schools, universities, or training programs
+• Academic research
+• Independent experimentation
+• Demonstrations, tutorials, livestreams, or educational content
+• Content creation such as YouTube videos, blog posts, technical walkthroughs, or course material
+• Reviews, comparisons, or public demonstrations of the Software
+• Use by content creators on monetized platforms (including YouTube, Twitch, or similar platforms) **as long as the Software itself is not sold, redistributed for profit, or used to operate a commercial service**
+• Non-profit organization usage
+• Testing or evaluation of the Software
 
----
-
-## 5. Commercial Licensing
-
-Commercial use of the Software requires a **separate commercial license** from the copyright holder.
-
-For commercial licensing, partnerships, or permissions, contact:
-
-**Gaurav Sanghvi**
-Email: [sanghvigaurav95@gmail.com](mailto:sanghvigaurav95@gmail.com)
-Mobile: +91 7777045091
+Such uses are permitted provided the Software itself is **not sold, licensed, embedded in a paid product, or used to provide a commercial service**.
 
 ---
 
-## 6. Disclaimer of Warranty
+# 3. Prohibited Commercial Uses
 
-THE SOFTWARE IS PROVIDED **"AS IS"**, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+The following activities are **not permitted without a separate commercial license**:
 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+• Using the Software as part of a commercial product or service
+• Integrating the Software into paid software, SaaS platforms, or subscription systems
+• Using the Software within internal tools of a business or commercial organization
+• Offering the Software as part of consulting services
+• Reselling or sublicensing the Software
+• Running hosted services powered by the Software
+• Including the Software within proprietary enterprise systems
+
+Organizations wishing to perform any of the above activities must obtain a **separate commercial license** from the copyright holder.
+
+---
+
+# 4. Distribution Conditions
+
+If you distribute the Software or a modified version of the Software, you must:
+
+• Include a complete copy of this license
+• Retain all copyright notices
+• Clearly indicate if modifications were made
+• Not misrepresent the origin of the Software
+
+You may distribute modified versions of the Software only under the terms of this same license.
+
+---
+
+# 5. Contributions
+
+By submitting a contribution to this repository (including pull requests, code changes, documentation updates, or other materials), you agree that:
+
+• Your contribution will be licensed under the **same license as this project**.
+• You have the legal right to submit the contribution.
+• Your contribution does not violate the rights of any third party.
+
+This ensures that all project contributions remain compatible with the project's licensing model.
+
+---
+
+# 6. Commercial Licensing
+
+Commercial use of the Software requires a **separate commercial license agreement**.
+
+Commercial licenses may include:
+
+• Enterprise deployment rights
+• SaaS usage rights
+• Integration into proprietary systems
+• Redistribution rights
+
+For commercial licensing inquiries contact:
+
+Gaurav Sanghvi
+
+Email: sanghvigaurav95@gmail.com
+Phone: +91 7777045091
+
+---
+
+# 7. Trademark and Branding
+
+This license does not grant permission to use the name **CodexMemory**, associated branding, or logos in a way that implies endorsement or affiliation with the copyright holder.
+
+---
+
+# 8. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+
+This includes but is not limited to warranties of:
+
+• Merchantability
+• Fitness for a particular purpose
+• Non-infringement
+
+The entire risk as to the quality and performance of the Software is with the user.
+
+---
+
+# 9. Limitation of Liability
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM:
+
+• Use of the Software
+• Inability to use the Software
+• Misuse of the Software
+• Any damages related to software failures
+
+This applies whether the claim arises under contract, tort, negligence, or otherwise.
+
+---
+
+# 10. Termination
+
+This license automatically terminates if you violate any of its terms.
+
+Upon termination, you must immediately stop using and distributing the Software and destroy all copies in your possession.
+
+---
+
+# 11. Governing Law
+
+This license shall be governed and interpreted in accordance with the applicable laws of the jurisdiction of the copyright holder, unless otherwise required by local law.
+
+---
+
+# 12. Summary (Non-Legal Explanation)
+
+You may:
+
+• Use the software personally
+• Study the source code
+• Modify it
+• Share it
+• Demonstrate it publicly
+
+You may NOT:
+
+• Sell it
+• Use it in commercial products
+• Deploy it inside companies
+• Offer services based on it
+
+Commercial usage requires a commercial license from the author.
+
+---
+
+End of License
