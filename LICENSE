@@ -1,34 +1,62 @@
-PolyForm Noncommercial License 1.0.0
+# PolyForm Noncommercial License 1.0.0
 
-Gaurav Sanghvi
-2026
+Copyright (c) 2026 Gaurav Sanghvi
 
-This license applies to any software, software source code, or documentation (the "Software") that is accompanied by this license document.
+This license applies to any software, software source code, or documentation (the **"Software"**) that is accompanied by this license document.
 
-The copyright holder grants you a license to do everything with the Software that would otherwise infringe the copyright holder's copyright, as well as the right to use any of the copyright holder's patents embodied in the Software, under these terms:
+The copyright holder grants you a license to use, copy, modify, and distribute the Software, and to exercise any patent rights embodied in the Software, under the terms described below.
 
-1. Permitted Uses
+---
 
-You may use the Software for noncommercial purposes. Noncommercial purposes include:
+## 1. Permitted Uses
 
-* Use by an individual for their own personal use, such as for a hobby or as an educational tool.
-* Use by an individual or organization for academic or research purposes.
-* Use by a non-profit organization or a registered charity.
-* Use for testing, evaluating, and demonstrating the Software.
+You may use the Software **only for noncommercial purposes**.
 
-2. Non-Permitted Uses
+Noncommercial purposes include, but are not limited to:
 
-You may not use the Software for any commercial purposes. Commercial purposes include:
+* **Personal Use**
+  Use by an individual for personal projects, hobbies, or learning.
 
-* Incorporating the Software into a commercial product or service.
-* Using the Software to provide a commercial service.
-* Using the Software for internal business purposes, other than those explicitly permitted above.
-* Distributing the Software for a fee or other consideration.
+* **Educational Use**
+  Use by students, teachers, researchers, or educational institutions.
 
-3. Notices
+* **Academic or Research Use**
+  Use by individuals or organizations conducting academic studies or research.
 
-You must retain all copyright, patent, and trademark notices that appear in the Software. If you distribute the Software, you must include a copy of this license document.
+* **Non-Profit Use**
+  Use by registered non-profit organizations or charities.
 
-4. Disclaimer of Warranty
+* **Testing and Evaluation**
+  Use for testing, evaluating, demonstrating, or experimenting with the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+---
+
+## 2. Non-Permitted Uses
+
+You may **not** use the Software for any **commercial purposes**.
+
+Commercial purposes include, but are not limited to:
+
+* Incorporating the Software into a **commercial product or service**.
+* Using the Software to **provide a paid or revenue-generating service**.
+* Using the Software for **internal business operations or commercial workflows**, except where explicitly permitted above.
+* **Selling, licensing, sublicensing, or distributing** the Software for a fee or other financial consideration.
+
+---
+
+## 3. Notices
+
+You must retain all **copyright, patent, and trademark notices** included in the Software.
+
+If you distribute the Software or modified versions of the Software, you must:
+
+* Include a **copy of this license**, and
+* Preserve all **original copyright and attribution notices**.
+
+---
+
+## 4. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED **"AS IS"**, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
