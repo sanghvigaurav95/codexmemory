@@ -2,9 +2,9 @@
 
 Copyright (c) 2026 Gaurav Sanghvi
 
-This license applies to any software, software source code, or documentation (the **"Software"**) that is accompanied by this license document.
+This license applies to any software, software source code, documentation, or related materials (the **"Software"**) that are distributed with this license file.
 
-The copyright holder grants you a license to use, copy, modify, modify, and distribute the Software, and to exercise any patent rights embodied in the Software, under the terms described below.
+The copyright holder grants you a license to use, copy, modify, and distribute the Software, and to exercise any patent rights embodied in the Software, subject to the terms and conditions described below.
 
 ---
 
@@ -14,64 +14,82 @@ You may use the Software **only for noncommercial purposes**.
 
 Noncommercial purposes include, but are not limited to:
 
-* **Personal Use**
-  Use by an individual for personal projects, hobbies, or learning.
+### Personal Use
 
-* **Educational Use**
-  Use by students, teachers, researchers, or educational institutions.
+Use by an individual for personal projects, experimentation, hobbies, or learning.
 
-* **Academic or Research Use**
-  Use by individuals or organizations conducting academic studies or research.
+### Educational Use
 
-* **Non-Profit Use**
-  Use by registered non-profit organizations or charities.
+Use by students, teachers, researchers, or educational institutions for learning or teaching.
 
-* **Testing and Evaluation**
-  Use for testing, evaluating, demonstrating, or experimenting with the Software.
+### Academic and Research Use
 
-* **Content Creation and Demonstration**
-  You may demonstrate, review, or showcase the Software in videos, tutorials, livestreams, articles, or educational content, including monetized platforms such as YouTube, provided the Software itself is not sold, licensed, or used to provide a commercial product or service.
+Use by individuals or organizations conducting academic research, experiments, or technical exploration.
+
+### Non-Profit Use
+
+Use by registered non-profit organizations or charities.
+
+### Testing and Evaluation
+
+Use for testing, benchmarking, evaluating, or experimenting with the Software.
+
+### Content Creation and Demonstration
+
+You may demonstrate, review, or showcase the Software in videos, tutorials, livestreams, articles, blogs, documentation, or other educational or informational content, including on monetized platforms such as YouTube or similar services, **provided the Software itself is not sold, licensed, or used to provide a commercial product or service**.
 
 ---
 
 ## 2. Non-Permitted Uses
 
-You may **not** use the Software for any **commercial purposes**.
+You may **not** use the Software for any **commercial purpose** without obtaining a separate commercial license from the copyright holder.
 
 Commercial purposes include, but are not limited to:
 
-* Incorporating the Software into a **commercial product or service**.
-* Using the Software to **provide a paid or revenue-generating service**.
-* Using the Software for **internal business operations or commercial workflows**, except where explicitly permitted above.
-* **Selling, licensing, sublicensing, or distributing** the Software for a fee or other financial consideration.
+* Incorporating the Software into a **commercial product or service**
+* Using the Software to **provide paid services**
+* Using the Software within **internal commercial business operations**
+* Offering the Software as part of a **SaaS platform, paid tool, or enterprise system**
+* Selling, sublicensing, or distributing the Software **for a fee or financial consideration**
 
 ---
 
-## 3. Notices
-
-You must retain all **copyright, patent, and trademark notices** included in the Software.
+## 3. Distribution Requirements
 
 If you distribute the Software or modified versions of the Software, you must:
 
-* Include a **copy of this license**, and
-* Preserve all **original copyright and attribution notices**.
+* Include a **copy of this license**
+* Preserve all **copyright notices, attribution notices, and disclaimers**
+* Clearly indicate if you have **modified the Software**
 
 ---
 
-## 4. Disclaimer of Warranty
+## 4. Contributions
 
-THE SOFTWARE IS PROVIDED **"AS IS"**, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+If you submit a contribution to this repository (including pull requests, patches, code improvements, documentation, or other materials), you agree that:
 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+* Your contribution will be **licensed under the same license as this project**.
+* You confirm that you **have the legal right to submit the contribution**.
+* Your contribution does **not violate any third-party rights**.
+
+This ensures that all contributions remain compatible with the project's licensing model.
 
 ---
 
 ## 5. Commercial Licensing
 
-If you wish to use the Software for **commercial purposes**, you must obtain a separate commercial license from the copyright holder.
+Commercial use of the Software requires a **separate commercial license** from the copyright holder.
 
-For commercial licensing inquiries or permissions, please contact:
+For commercial licensing, partnerships, or permissions, contact:
 
 **Gaurav Sanghvi**
 Email: [sanghvigaurav95@gmail.com](mailto:sanghvigaurav95@gmail.com)
 Mobile: +91 7777045091
+
+---
+
+## 6. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED **"AS IS"**, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
